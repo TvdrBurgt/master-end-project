@@ -1,0 +1,44 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Mar  2 21:05:39 2021
+
+@author: tvdrb
+"""
+
+import os
+
+
+# =============================================================================
+# Tool for renaming images without timestamp
+# =============================================================================
+
+filepath = r'pathname'
+
+yestoall = False
+notoall = False
+for count, oldfilename in enumerate(os.listdir(filepath)):
+    
+    # split filename with delimiter '_' and '.'
+    filename = oldfilename.split('_')[0]
+    filetype = oldfilename.split('.')[-1]
+    
+    # construct new filename as: [filename].[filetype]
+    if filename == oldfilename:
+        newfilename = filename
+    else:
+        newfilename = filename + '.' + filetype
+    
+    # manual check
+    print("\nAre you sure you want to rename:")
+    print(oldfilename + '  -->  ' + newfilename)
+    if not yestoall:
+        x = input("[y]/n\n")
+        if x == 'yes to all':
+            yestoall = True
+        elif x == 'no to all':
+            break
+    
+    # rename filename
+    if x == 'y' or x == 'yes' or yestoall:
+        os.rename(filepath+'/'+oldfilename, filepath+'/'+newfilename)
+    
