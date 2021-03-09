@@ -23,6 +23,7 @@ class DetectPipetteTips:
     """
     def __init__(self,path):
         self.folder = path
+        self.savename = "Translation space Boyden"
         self.filenames = os.listdir(path)
         self.filecount = -1
         self.lastfile = len(self.filenames)
@@ -38,7 +39,7 @@ class DetectPipetteTips:
         print("File number %d/%d" % (self.filecount+1,self.lastfile))
         
         # check if we arrived at the last file
-        if self.filecount <= self.lastfile:
+        if self.filecount < self.lastfile:
             filepath = self.folder + "\\" + str(self.filenames[self.filecount])
             
             # check if file is a .tif before opening
@@ -50,6 +51,7 @@ class DetectPipetteTips:
                 
         else:
             print("Last file in folder reached")
+            self.list2file()
     
     def pipetteRecognition(self):
         """
@@ -87,7 +89,7 @@ class DetectPipetteTips:
         print('VI) Pipette tip located at pixel coordinate: (x,y) = (%d,%d).' % (xpos,ypos))
         
         # saving pipette tip coordinates
-        self.pipettetips.append([self.filenames[self.filecount], xpos, ypos])
+        self.pipettetips.append([self.filenames[self.filecount], (xpos, ypos)])
         
         # plot result
         # self.plotFigures()
@@ -222,6 +224,27 @@ class DetectPipetteTips:
         plt.pause(10)
         input("Press enter to continue...")
         plt.close()
+        
+    
+    def list2file(self):
+        # write final coordinates to a .csv file
+        with open(self.folder+'\\'+self.savename, 'w') as txtfile:
+            txtfile.write("filename;x;y\n")
+            # for item in self.pipettetips:
+            #     txtfile.write("{};".format(item[0]))
+            #     try:
+            #         txtfile.write("%d;" % item[1][0])
+            #     except:
+            #         txtfile.write("%d;" % item[1])
+            #     try:
+            #         txtfile.write("%d\n" % item[2][0])
+            #     except:
+            #         txtfile.write("%d\n" % item[2])
+            for item in self.pipettetips:
+                txtfile.write("{};".format(item[0]))
+                txtfile.write("%d;" % item[1][0])
+                txtfile.write("%d\n" % item[1][1])
+        print("Files saved in [path] with name {}".format(self.savename))
 
 
 if __name__ == '__main__':
