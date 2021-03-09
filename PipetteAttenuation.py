@@ -16,13 +16,14 @@ from skimage import io
 
 # target folder containing the images to be annotated
 path = r'C:\Users\tvdrb\Desktop\Thijs\Translation space'
+
 # name of .txt in which to save pipette coordinates
 savename = 'Translation space attenuated'
-
 
 # list to save the pipette tip coordinates in
 coordinateclicks = []
 finallist = []
+
 
 def on_click(event):
     # register pixel position of mouse click
@@ -61,7 +62,6 @@ for count, filename in enumerate(os.listdir(path)):
         print('Last annotated: {}'.format(finallist[-1]))
     
 # write final coordinates to a .csv file
-
 with open(path+'\\'+savename, 'w') as txtfile:
     txtfile.write("filename;x;y\n")
     for item in finallist:
