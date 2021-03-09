@@ -14,15 +14,18 @@ import matplotlib.pyplot as plt
 # Pipette Recognition (based on Boyden et al.'s autopatcher IG)
 # =============================================================================
 
+# suppress plots by choosing [False]
+plotflag = False
+
 # load tiff
-filepath = r"C:\Users\tvdrb\Desktop\NB5900 Research Project\Pipette tips\boyden.png"
+filepath = r"C:\Users\tvdrb\Desktop\Thijs\Translation space\focus 250 200 0.tif"
 I = io.imread(filepath)
 
 # Convert Tiff to 2D if Z-stack is the same
-I = I[:,:,0]
-        
+# I = I[:,:,0]
 
 ####################### tip detection algorithm #######################
+
 def Houghlines2Imageboundary(T,R,img):
     """
     This function extracts the intersection coordinates between extended Hough-
@@ -139,12 +142,11 @@ BW = feature.canny(IB, sigma=10, low_threshold=0.9, high_threshold=0.7, use_quan
 
 # Hough transform
 print('Calculating Hough transform...\n')
-# H, T, R = transform.hough_line(BW,np.linspace(np.pi/3,2*np.pi/3,120*100))
-H, T, R = transform.hough_line(BW,np.linspace(2*np.pi/12,5*np.pi/12,120*100))
+H, T, R = transform.hough_line(BW,np.linspace(5*np.pi/12,7*np.pi/12,120*100))
 
 # extract most common lines in the image from the Hough transform
 print('Finding most common lines from Hough transform...\n')
-num_lines = 17
+num_lines = 7
 _, Tcommon, Rcommon = transform.hough_line_peaks(H,T,R,num_peaks=num_lines)
 
 # draw Houghlines on a canvas with same dimensions as the input image
@@ -168,22 +170,23 @@ print('Pipette tip located at pixel coordinate: (x,y) = (%d,%d).' % (xpos,ypos))
 
 
 # make figures
-f1, axs1 = plt.subplots(1,3)
-axs1[0].imshow(I, cmap='gray'); axs1[0].axis('image'); axs1[0].axis('off')
-axs1[1].imshow(canvasblur, cmap='gray'); axs1[1].axis('image'); axs1[1].axis('off')
-axs1[2].imshow(I, cmap='gray'); axs1[2].axis('image'); axs1[2].axis('off')
-axs1[2].scatter(x=xpos, y=ypos, c='r', s=30)
-axs1[2].annotate('(%d,%d)' % (xpos,ypos), (xpos+30, ypos-15), c='r')
-
-f2, axs2 = plt.subplots(1,3)
-axs2[0].imshow(IB, cmap='gray', aspect = 'auto'); axs2[0].axis('image'); axs2[0].axis('off')
-axs2[1].imshow(BW, cmap='jet', aspect = 'auto'); axs2[1].axis('image'); axs2[1].axis('off')
-axs2[2].imshow(np.log(1+H), extent=[np.rad2deg(T[0]), np.rad2deg(T[-1]), R[-1], R[0]], aspect='auto')
-axs2[2].set_xlabel(r'$\theta$ (radians)')
-axs2[2].set_ylabel(r'$\rho$ (pixels)')
-
-for _, angle, dist in zip(*transform.hough_line_peaks(H,T,R,num_peaks=num_lines)):
-    (x0, y0) = dist*np.array([np.cos(angle), np.sin(angle)])
-    axs1[0].axline((x0 ,y0), slope=np.tan(angle + np.pi/2))
-    axs2[2].scatter(x=[angle*180/np.pi], y=[dist], c='r', s=20)
+if plotflag:
+    f1, axs1 = plt.subplots(1,3)
+    axs1[0].imshow(I, cmap='gray'); axs1[0].axis('image'); axs1[0].axis('off')
+    axs1[1].imshow(canvasblur, cmap='gray'); axs1[1].axis('image'); axs1[1].axis('off')
+    axs1[2].imshow(I, cmap='gray'); axs1[2].axis('image'); axs1[2].axis('off')
+    axs1[2].scatter(x=xpos, y=ypos, c='r', s=30)
+    axs1[2].annotate('(%d,%d)' % (xpos,ypos), (xpos+30, ypos-15), c='r')
+    
+    f2, axs2 = plt.subplots(1,3)
+    axs2[0].imshow(IB, cmap='gray', aspect = 'auto'); axs2[0].axis('image'); axs2[0].axis('off')
+    axs2[1].imshow(BW, cmap='jet', aspect = 'auto'); axs2[1].axis('image'); axs2[1].axis('off')
+    axs2[2].imshow(np.log(1+H), extent=[np.rad2deg(T[0]), np.rad2deg(T[-1]), R[-1], R[0]], aspect='auto')
+    axs2[2].set_xlabel(r'$\theta$ (radians)')
+    axs2[2].set_ylabel(r'$\rho$ (pixels)')
+    
+    for _, angle, dist in zip(*transform.hough_line_peaks(H,T,R,num_peaks=num_lines)):
+        (x0, y0) = dist*np.array([np.cos(angle), np.sin(angle)])
+        axs1[0].axline((x0 ,y0), slope=np.tan(angle + np.pi/2))
+        axs2[2].scatter(x=[angle*180/np.pi], y=[dist], c='r', s=20)
     
