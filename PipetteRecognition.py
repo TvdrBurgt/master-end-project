@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 # =============================================================================
 
 # suppress plots by choosing [False]
-plotflag = False
+plotflag = True
 
 # load tiff
-filepath = r"C:\Users\tvdrb\Desktop\Thijs\Translation space\focus 250 200 0.tif"
+filepath = r"C:\Users\tvdrb\Desktop\Thijs\Translation space\focus 250 200 2.tif"
 I = io.imread(filepath)
 
 # Convert Tiff to 2D if Z-stack is the same
@@ -190,3 +190,4 @@ if plotflag:
         axs1[0].axline((x0 ,y0), slope=np.tan(angle + np.pi/2))
         axs2[2].scatter(x=[angle*180/np.pi], y=[dist], c='r', s=20)
     
+    plt.show()

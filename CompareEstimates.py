@@ -8,7 +8,8 @@ Created on Tue Mar  9 21:09:43 2021
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+import matplotlib.cm as cm
+from matplotlib.lines import Line2D
 
 # =============================================================================
 # Tool for quantitatively comparing pipette tip estimates
@@ -51,10 +52,32 @@ for index, row in file1.iterrows():
 combinedfile = pd.DataFrame(list(zip(name,x1,y1,x2,y2,dx,dy)),
                             columns =['Filename','x1','y1','x2','y2','dx','dy'])
 
-# make scatter plot out of coordinates
-"""
-Make scatter plot (x1,y1) together with (x2,y2) with corresponding colors.
-Do someting with dx and dy
-"""
-plt.plot(dy)
+############################ Quantitative analysis ############################
+
+
+
+############################## Construct Figures ##############################
+fig = plt.figure()
+
+# set figure properties
+plt.title('Pipette tip localization comparison')
+plt.xlabel('x (in pixels)'); plt.ylabel('y (in pixels)')
+plt.xlim([0, 2048]); plt.ylim([2048, 0])
+
+# make scatter plot
+colors = cm.rainbow(np.linspace(0, 1, len(x1)))
+for i in range(len(x1)):
+    if np.sqrt(dx[i]**2+dy[i]**2) < 500:
+        plt.scatter(x1[i], y1[i], color=colors[i,:], marker='x')
+        plt.scatter(x2[i], y2[i], color=colors[i,:], marker='o')
+        print(name[i])
+
+# add custom legend
+legend_elements = [plt.scatter([], [], marker='x', color='black', label='Ground truth'),
+                   plt.scatter([], [], marker='o', color='black', label='Algorithm')]
+plt.legend(handles=legend_elements)
+
+# show plot
+plt.show()
+
 
