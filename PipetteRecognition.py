@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 plotflag = True
 
 # load tiff
-filepath = r"C:\Users\tvdrb\Desktop\Thijs\Translation space\focus 250 200 2.tif"
+filepath = r"C:\Users\tvdrb\Desktop\Thijs\Translation space\focus 20 250 0.tif"
 I = io.imread(filepath)
 
 # Convert Tiff to 2D if Z-stack is the same
@@ -142,12 +142,21 @@ BW = feature.canny(IB, sigma=10, low_threshold=0.9, high_threshold=0.7, use_quan
 
 # Hough transform
 print('Calculating Hough transform...\n')
-H, T, R = transform.hough_line(BW,np.linspace(5*np.pi/12,7*np.pi/12,120*100))
+theta1 = np.linspace(5*np.pi/12, 5.3*np.pi/12, 120*50)
+theta2 = np.linspace(6.6*np.pi/12, 6.9*np.pi/12, 120*50)
+H1, T1, R1 = transform.hough_line(BW,theta1)
+H2, T2, R2 = transform.hough_line(BW,theta2)
+H = np.hstack((H1, H2))
+T = np.hstack((T1, T2))
+R = np.hstack((R1, R2))
 
 # extract most common lines in the image from the Hough transform
+num_lines = 8
 print('Finding most common lines from Hough transform...\n')
-num_lines = 7
-_, Tcommon, Rcommon = transform.hough_line_peaks(H,T,R,num_peaks=num_lines)
+_, Tcommon1, Rcommon1 = transform.hough_line_peaks(H1,T1,R1,num_peaks=num_lines)
+_, Tcommon2, Rcommon2 = transform.hough_line_peaks(H2,T2,R2,num_peaks=num_lines)
+Tcommon = np.append(Tcommon1,Tcommon2)
+Rcommon = np.append(Rcommon1,Rcommon2)
 
 # draw Houghlines on a canvas with same dimensions as the input image
 print('Filling canvas with most the %d most common lines...\n' % num_lines)
@@ -185,7 +194,11 @@ if plotflag:
     axs2[2].set_xlabel(r'$\theta$ (radians)')
     axs2[2].set_ylabel(r'$\rho$ (pixels)')
     
-    for _, angle, dist in zip(*transform.hough_line_peaks(H,T,R,num_peaks=num_lines)):
+    for _, angle, dist in zip(*transform.hough_line_peaks(H1,T1,R1,num_peaks=num_lines)):
+        (x0, y0) = dist*np.array([np.cos(angle), np.sin(angle)])
+        axs1[0].axline((x0 ,y0), slope=np.tan(angle + np.pi/2))
+        axs2[2].scatter(x=[angle*180/np.pi], y=[dist], c='r', s=20)
+    for _, angle, dist in zip(*transform.hough_line_peaks(H2,T2,R2,num_peaks=num_lines)):
         (x0, y0) = dist*np.array([np.cos(angle), np.sin(angle)])
         axs1[0].axline((x0 ,y0), slope=np.tan(angle + np.pi/2))
         axs2[2].scatter(x=[angle*180/np.pi], y=[dist], c='r', s=20)

@@ -69,10 +69,19 @@ class DetectPipetteTips:
         BW = feature.canny(IB, sigma=10, low_threshold=0.9, high_threshold=0.7, use_quantiles=True)
         
         print('III) Calculating Hough transform...')
-        self.H, self.T, self.R = transform.hough_line(BW,np.linspace(5*np.pi/12,7*np.pi/12,120*100))
+        theta1 = np.linspace(5*np.pi/12, 5.3*np.pi/12, 120*50)      # angle of 24 degrees
+        theta2 = np.linspace(6.6*np.pi/12, 6.9*np.pi/12, 120*50)    # angle of -24 degrees
+        H1, T1, R1 = transform.hough_line(BW,theta1)
+        H2, T2, R2 = transform.hough_line(BW,theta2)
+        self.H = np.hstack((H1, H2))
+        self.T = np.hstack((T1, T2))
+        self.R = np.hstack((R1, R2))
         
         print('IV) Finding most common lines from Hough transform...')
-        _, self.Tcommon, self.Rcommon = transform.hough_line_peaks(self.H,self.T,self.R,num_peaks=num_lines)
+        _, Tcommon1, Rcommon1 = transform.hough_line_peaks(H1,T1,R1,num_peaks=num_lines)
+        _, Tcommon2, Rcommon2 = transform.hough_line_peaks(H2,T2,R2,num_peaks=num_lines)
+        self.Tcommon = np.append(Tcommon1,Tcommon2)
+        self.Rcommon = np.append(Rcommon1,Rcommon2)
         
         print('V) Filling canvas with most the %d most common lines...' % num_lines)
         self.canvas = np.zeros((self.I.shape[0], self.I.shape[1]))
