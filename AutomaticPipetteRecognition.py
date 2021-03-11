@@ -23,7 +23,7 @@ class DetectPipetteTips:
     """
     def __init__(self,path):
         self.folder = path
-        self.savename = "Translation space Boyden"
+        self.savename = "Noise space Boyden"
         self.filenames = os.listdir(path)
         self.filecount = -1
         self.lastfile = len(self.filenames)
@@ -36,10 +36,10 @@ class DetectPipetteTips:
         file. It also checks if it has reached the last file in the folder.
         """
         self.filecount += 1
-        print("File number %d/%d" % (self.filecount+1,self.lastfile))
         
         # check if we arrived at the last file
         if self.filecount < self.lastfile:
+            print("File number %d/%d" % (self.filecount+1,self.lastfile))
             filepath = self.folder + "\\" + str(self.filenames[self.filecount])
             
             # check if file is a .tif before opening
@@ -47,11 +47,9 @@ class DetectPipetteTips:
                 self.I = io.imread(filepath)
                 # run pipette tip recognition algorithm
                 self.pipetteRecognition()
+            
+            # go to next file
             self.nextImage()
-                
-        else:
-            print("Last file in folder reached")
-            self.list2file()
     
     def pipetteRecognition(self):
         """
@@ -60,7 +58,7 @@ class DetectPipetteTips:
         [num_lines] to describe the pipette point. The intersection should be
         the pipette tip.
         """
-        num_lines = 7 # maximum number of lines to find
+        num_lines = 8 # maximum number of lines to find
         
         print('I) Gaussian blurring...')
         IB = filters.gaussian(self.I, 15)
@@ -235,32 +233,23 @@ class DetectPipetteTips:
         plt.close()
         
     
-    def list2file(self):
+    def save2file(self):
         # write final coordinates to a .csv file
         with open(self.folder+'\\'+self.savename, 'w') as txtfile:
             txtfile.write("filename;x;y\n")
-            # for item in self.pipettetips:
-            #     txtfile.write("{};".format(item[0]))
-            #     try:
-            #         txtfile.write("%d;" % item[1][0])
-            #     except:
-            #         txtfile.write("%d;" % item[1])
-            #     try:
-            #         txtfile.write("%d\n" % item[2][0])
-            #     except:
-            #         txtfile.write("%d\n" % item[2])
             for item in self.pipettetips:
                 txtfile.write("{};".format(item[0]))
                 txtfile.write("%d;" % item[1][0])
                 txtfile.write("%d\n" % item[1][1])
-        print("Files saved in [path] with name {}".format(self.savename))
+        print("Files saved in <path> as: {}".format(self.savename))
 
 
 if __name__ == '__main__':
     # fill in the complete path of the folder containing pipette tip images
-    path = r"C:\Users\tvdrb\Desktop\Thijs\Translation space"
+    path = r"C:\Users\tvdrb\Desktop\Thijs\Noise space"
     
     pipettetips = DetectPipetteTips(path)
     pipettetips.nextImage()
+    pipettetips.save2file()
     
     

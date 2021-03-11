@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 plotflag = True
 
 # load tiff
-filepath = r"C:\Users\tvdrb\Desktop\Thijs\Translation space\focus 20 250 0.tif"
+filepath = r"C:\Users\tvdrb\Desktop\Thijs\Noise space\focus high noise.tif"
 I = io.imread(filepath)
 
 # Convert Tiff to 2D if Z-stack is the same

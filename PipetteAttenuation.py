@@ -15,10 +15,10 @@ from skimage import io
 
 
 # target folder containing the images to be annotated
-path = r'C:\Users\tvdrb\Desktop\Thijs\Translation space'
+path = r'C:\Users\tvdrb\Desktop\Thijs\Noise space'
 
 # name of .txt in which to save pipette coordinates
-savename = 'Translation space attenuated'
+savename = 'Noise space attenuated'
 
 # list to save the pipette tip coordinates in
 coordinateclicks = []
