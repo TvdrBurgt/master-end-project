@@ -15,19 +15,19 @@ import matplotlib.cm as cm
 # =============================================================================
 
 # target folder containing the images to be annotated
-path = r'C:\Users\tvdrb\Desktop\Thijs\Translation space'
+path = r'C:\Users\tvdrb\Desktop\Pipette attenuations'
 
 # names of files to compare
-file1 = "Translation space attenuated"      # let this be your ground truth
-file2 = "Translation space Boyden"
+groundtruth = "XY grid attenuated"
+estimate = "XY grid modified algorithm anglerange2"
 
 # image size
 xsize = 2048
 ysize = xsize
 
 # read files
-file1 = pd.read_csv(path+"\\"+file1, sep=';')
-file2 = pd.read_csv(path+"\\"+file2, sep=';')
+groundtruth = pd.read_csv(path+"\\"+groundtruth, sep=';')
+estimate = pd.read_csv(path+"\\"+estimate, sep=';')
 
 
 # calculate position differences
@@ -38,15 +38,15 @@ y1 = []
 y2 = []
 dx = []
 dy = []
-for index, row in file1.iterrows():
-    if row[0] == file2.filename[index]:
+for index, row in groundtruth.iterrows():
+    if row[0] == estimate.filename[index]:
         name.append(row[0])
         x1.append(row[1])
         y1.append(row[2])
-        x2.append(file2.x[index])
-        y2.append(file2.y[index])
-        dx.append(row[1] - file2.x[index])
-        dy.append(row[2] - file2.y[index])
+        x2.append(estimate.x[index])
+        y2.append(estimate.y[index])
+        dx.append(row[1] - estimate.x[index])
+        dy.append(row[2] - estimate.y[index])
     else:
         print("Filename does not correspond:\n{}".format(row[0]))
 
@@ -68,46 +68,49 @@ dy = np.array(dy)
 num_segments = 4
 
 # create boolean matrix with each column another segment
-segmentclass = np.zeros((len(name),num_segments), dtype=bool)
+segmentclass = np.zeros((len(name),num_segments+1), dtype=bool)
 centerdistance = np.sqrt((x1-xsize/2)**2 + (y1-ysize/2)**2)
 
 # match coordinates with their corresponding segment
-for i in range(num_segments):
+for i in range(num_segments+1):
     lowerbound = ysize/(num_segments)/2*i
     upperbound = ysize/(num_segments)/2*(i+1)
     # check if coordinates fall within a segment
-    if i < num_segments-1:
-        segmentclass[:,i] = (centerdistance>=lowerbound) & (centerdistance<upperbound)
-    else:
-        segmentclass[:,i] = centerdistance>=lowerbound
+    segmentclass[:,i] = (centerdistance>=lowerbound) & (centerdistance<upperbound)
 
 # calculate mean and standard deviation per segment
 errordistance = np.sqrt(dx**2 + dy**2)
 print("MEAN +/- SD:")
-mu = np.zeros(num_segments)
-sigma = np.zeros(num_segments)
-for i in range(num_segments):
-    # calculate mean per segment
-    mu[i] = np.mean(errordistance[segmentclass[:,i]])
-    # calculate standard deviation per segment
-    sigma[i] = np.std(errordistance[segmentclass[:,i]])
-    print("Segment %d: %d +/- %d" % (i+1,mu[i],sigma[i]))
+mu = np.zeros(num_segments+1)
+sigma = np.zeros(num_segments+1)
+for i in range(num_segments+1):
+    try:
+        # calculate mean per segment
+        mu[i] = np.mean(errordistance[segmentclass[:,i]])
+        # calculate standard deviation per segment
+        sigma[i] = np.std(errordistance[segmentclass[:,i]])
+    except:
+        mu[i] = np.nan
+        sigma[i] = np.nan
+    print("Segment %d: %f +/- %f" % (i+1,mu[i],sigma[i]))
 
 
 ########################## Construct Figure Segments ##########################
 fig,ax = plt.subplots()
+
+# set figure properties
+ax.set_title('Localization precision: MEAN +/- SD')
+ax.set_xlabel('x (in pixels)'); ax.set_ylabel('y (in pixels)')
 ax.set_xlim([0, xsize]); ax.set_ylim([ysize, 0])
 ax.set_aspect('equal')
 
 # plot segments as circles around the image center
-c = cm.rainbow(np.linspace(0, 1, num_segments))
+c = cm.rainbow(np.linspace(0, 1, num_segments+1))
 legend_items = []
-for i in range(num_segments):
+for i in range(num_segments+1):
     r = ysize/(num_segments)/2*(i+1)
     ax.add_patch(plt.Circle((xsize/2, ysize/2), radius=r, linestyle=':', color=c[i], fill=False))
-    # legend_items += [plt.scatter([], [], marker='.', color=c[i], label=('R=%d'%r))]
-    legend_items += [plt.scatter([], [], marker='.', color=c[i], label=('%d+/-%d'%(mu[i],sigma[i])))]
-    # ax.add_patch(plt.Circle((xsize/2, ysize/2), radius=r, linestyle=':', alpha=0.1))
+    legend_items += [plt.scatter([], [], marker='.', color=c[i], label=('%f+/-%f'%(mu[i],sigma[i])))]
 
 # add custom legend
 plt.legend(handles=legend_items)
