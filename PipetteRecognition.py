@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 plotflag = True
 
 # load tiff
-filepath = r"C:\Users\tvdrb\Desktop\Thijs\Noise space\focus high noise.tif"
+filepath = r"C:\Users\tvdrb\Desktop\NB5900 Research Project\Pipette tips\grid 0 0 0 cropped.tif"
 I = io.imread(filepath)
 
 # Convert Tiff to 2D if Z-stack is the same
@@ -134,7 +134,7 @@ def Houghlines2Imageboundary(T,R,img):
 
 # Gaussian blur
 print('Gaussian blurring...\n')
-IB = filters.gaussian(I, 15)
+IB = filters.gaussian(I, 4)
 
 # Canny edge detection
 print('Canny edge detection...\n')
@@ -142,8 +142,8 @@ BW = feature.canny(IB, sigma=10, low_threshold=0.9, high_threshold=0.7, use_quan
 
 # Hough transform
 print('Calculating Hough transform...\n')
-theta1 = np.linspace(5*np.pi/12, 5.3*np.pi/12, 120*50)
-theta2 = np.linspace(6.6*np.pi/12, 6.9*np.pi/12, 120*50)
+theta1 = np.linspace(5*np.pi/12, 6*np.pi/12, 120*50)
+theta2 = np.linspace(6*np.pi/12, 7*np.pi/12, 120*50)
 H1, T1, R1 = transform.hough_line(BW,theta1)
 H2, T2, R2 = transform.hough_line(BW,theta2)
 H = np.hstack((H1, H2))
@@ -155,24 +155,32 @@ num_lines = 8
 print('Finding most common lines from Hough transform...\n')
 _, Tcommon1, Rcommon1 = transform.hough_line_peaks(H1,T1,R1,num_peaks=num_lines)
 _, Tcommon2, Rcommon2 = transform.hough_line_peaks(H2,T2,R2,num_peaks=num_lines)
+Tcommon1 = np.mean(Tcommon1)
+Rcommon1 = np.mean(Rcommon1)
+Tcommon2 = np.mean(Tcommon2)
+Rcommon2 = np.mean(Rcommon2)
 Tcommon = np.append(Tcommon1,Tcommon2)
 Rcommon = np.append(Rcommon1,Rcommon2)
+
+# account for xposition overestimation bias
+tipdiameter = 10 #pixels
+deltax = (tipdiameter/2)/np.tan(np.abs(Tcommon[0]-Tcommon[1])/2)
 
 # draw Houghlines on a canvas with same dimensions as the input image
 print('Filling canvas with most the %d most common lines...\n' % num_lines)
 canvas = np.zeros((I.shape[0], I.shape[1]))
 for r0, c0, r1, c1 in zip(*Houghlines2Imageboundary(Tcommon,Rcommon,I)):
     # use line_aa() instead of line() because the rows and columns are rounded floats
-    rr, cc = draw.line(r0, c0, r1, c1)
+    rr, cc, val = draw.line_aa(r0, c0, r1, c1)
     # update canvas
-    canvas[rr, cc] += 1
+    canvas[rr, cc] += val
 
 # make lines thicker with gaussian blur
-canvasblur = filters.gaussian(canvas, 5)
+canvasblur = canvas
 
 # extract pipette tip
 ypos, xpos = np.where(canvasblur == np.max(canvasblur))
-xpos = xpos[-1]; ypos = ypos[-1]
+xpos = xpos[0]-deltax; ypos = ypos[0]
 print('Pipette tip located at pixel coordinate: (x,y) = (%d,%d).' % (xpos,ypos))
 
 #######################################################################

@@ -21,9 +21,9 @@ class DetectPipetteTips:
     This class iterates through a folder containing .tif files and extracts the
     (x,y)-coordinates of pipette tips.
     """
-    def __init__(self,path):
+    def __init__(self,path,savename):
         self.folder = path
-        self.savename = "Noise space Boyden"
+        self.savename = savename
         self.filenames = os.listdir(path)
         self.filecount = -1
         self.lastfile = len(self.filenames)
@@ -49,7 +49,7 @@ class DetectPipetteTips:
                 self.pipetteRecognition()
             
             # go to next file
-            self.nextImage()
+            # self.nextImage()
     
     def pipetteRecognition(self):
         """
@@ -67,8 +67,8 @@ class DetectPipetteTips:
         BW = feature.canny(IB, sigma=10, low_threshold=0.9, high_threshold=0.7, use_quantiles=True)
         
         print('III) Calculating Hough transform...')
-        theta1 = np.linspace(5*np.pi/12, 5.3*np.pi/12, 120*50)      # angle of 24 degrees
-        theta2 = np.linspace(6.6*np.pi/12, 6.9*np.pi/12, 120*50)    # angle of -24 degrees
+        theta1 = np.linspace(5*np.pi/12, 6*np.pi/12, 120*50)      # angle of ~24 degrees
+        theta2 = np.linspace(6*np.pi/12, 7*np.pi/12, 120*50)    # angle of ~-24 degrees
         H1, T1, R1 = transform.hough_line(BW,theta1)
         H2, T2, R2 = transform.hough_line(BW,theta2)
         self.H = np.hstack((H1, H2))
@@ -78,18 +78,26 @@ class DetectPipetteTips:
         print('IV) Finding most common lines from Hough transform...')
         _, Tcommon1, Rcommon1 = transform.hough_line_peaks(H1,T1,R1,num_peaks=num_lines)
         _, Tcommon2, Rcommon2 = transform.hough_line_peaks(H2,T2,R2,num_peaks=num_lines)
+        Tcommon1 = np.mean(Tcommon1)
+        Rcommon1 = np.mean(Rcommon1)
+        Tcommon2 = np.mean(Tcommon2)
+        Rcommon2 = np.mean(Rcommon2)
         self.Tcommon = np.append(Tcommon1,Tcommon2)
         self.Rcommon = np.append(Rcommon1,Rcommon2)
         
         print('V) Filling canvas with most the %d most common lines...' % num_lines)
         self.canvas = np.zeros((self.I.shape[0], self.I.shape[1]))
         for r0, c0, r1, c1 in zip(*self.Houghlines2Imageboundary(self.Tcommon,self.Rcommon,self.I)):
-            rr, cc = draw.line(r0, c0, r1, c1)
-            self.canvas[rr, cc] += 1
-        self.canvas = filters.gaussian(self.canvas, 5)
+            rr, cc, val = draw.line_aa(r0, c0, r1, c1)
+            self.canvas[rr, cc] += val
+        
+        # account for xposition overestimation bias
+        tipdiameter = 10 #pixels
+        deltax = (tipdiameter/2)/np.tan(np.abs(self.Tcommon[0]-self.Tcommon[1])/2)
         
         # extract pipette tip
         ypos, xpos = np.where(self.canvas == np.max(self.canvas))
+        xpos = xpos - deltax
         if len(xpos) != 1:
             ypos = ypos[0]
             xpos = xpos[0]
@@ -102,7 +110,7 @@ class DetectPipetteTips:
         # self.plotFigures()
         
         # go to next file
-        self.nextImage()
+        # self.nextImage()
         
         
     def Houghlines2Imageboundary(self,T,R,img):
@@ -246,10 +254,13 @@ class DetectPipetteTips:
 
 if __name__ == '__main__':
     # fill in the complete path of the folder containing pipette tip images
-    path = r"C:\Users\tvdrb\Desktop\Thijs\Noise space"
+    path = r"C:\Users\tvdrb\Desktop\Thijs\XY grid"
+    savename = "XY grid Boyden inspired"
     
-    pipettetips = DetectPipetteTips(path)
-    pipettetips.nextImage()
+    pipettetips = DetectPipetteTips(path,savename)
+    for i in range(pipettetips.lastfile):
+        pipettetips.nextImage()
+    
     pipettetips.save2file()
     
     
