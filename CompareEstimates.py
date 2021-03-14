@@ -19,7 +19,7 @@ path = r'C:\Users\tvdrb\Desktop\Pipette attenuations'
 
 # names of files to compare
 groundtruth = "XY grid attenuated"
-estimate = "XY grid modified algorithm"
+estimate = "XY grid algorithm angle"
 
 # image size
 xsize = 2048
@@ -84,14 +84,10 @@ print("MEAN +/- SD:")
 mu = np.zeros(num_segments+1)
 sigma = np.zeros(num_segments+1)
 for i in range(num_segments+1):
-    try:
-        # calculate mean per segment
-        mu[i] = np.mean(errordistance[segmentclass[:,i]])
-        # calculate standard deviation per segment
-        sigma[i] = np.std(errordistance[segmentclass[:,i]])
-    except:
-        mu[i] = np.nan
-        sigma[i] = np.nan
+    # calculate mean per segment
+    mu[i] = np.nanmean(errordistance[segmentclass[:,i]])
+    # calculate standard deviation per segment
+    sigma[i] = np.nanstd(errordistance[segmentclass[:,i]])
     print("Segment %d: %f +/- %f" % (i+1,mu[i],sigma[i]))
 
 
@@ -130,9 +126,8 @@ plt.xlim([0, xsize]); plt.ylim([ysize, 0])
 # make scatter plot
 colors = cm.rainbow(np.linspace(0, 1, len(name)))
 for i in range(len(name)):
-    if np.sqrt(dx[i]**2+dy[i]**2) < 500:
-        plt.scatter(x1[i], y1[i], color=colors[i,:], marker='x')
-        plt.scatter(x2[i], y2[i], color=colors[i,:], marker='o')
+    plt.scatter(x1[i], y1[i], color=colors[i,:], marker='x')
+    plt.scatter(x2[i], y2[i], color=colors[i,:], marker='o')
 
 # add custom legend
 legend_elements = [plt.scatter([], [], marker='x', color='black', label='Ground truth'),
