@@ -15,7 +15,7 @@ from skimage import io
 # =============================================================================
 
 # load function from other file
-from ModifiedPipetteRecognition import detectPipettetip
+from PipetteRecognition import detectPipettetip
 
 
 class DetectPipetteTips:
@@ -166,7 +166,7 @@ class DetectPipetteTips:
 
 if __name__ == '__main__':
     path = r"C:\Users\tvdrb\Desktop\Thijs\XY grid"
-    savename = "XY grid modified algorithm"
+    savename = "XY grid algorithm"
     
     imagefolder = DetectPipetteTips(path)
     imagefolder.iterator()
