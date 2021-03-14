@@ -19,7 +19,7 @@ path = r'C:\Users\tvdrb\Desktop\Pipette attenuations'
 
 # names of files to compare
 groundtruth = "XY grid attenuated"
-estimate = "XY grid modified algorithm anglerange2"
+estimate = "XY grid modified algorithm"
 
 # image size
 xsize = 2048
