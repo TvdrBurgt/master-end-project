@@ -19,7 +19,7 @@ path = r'C:\Users\tvdrb\Desktop\Pipette attenuations'
 
 # names of files to compare
 groundtruth = "XY grid attenuated"
-estimate = "XY grid algorithm angle"
+estimate = "XY grid algorithm bias corrected"
 
 # image size
 xsize = 2048
@@ -80,15 +80,26 @@ for i in range(num_segments+1):
 
 # calculate mean and standard deviation per segment
 errordistance = np.sqrt(dx**2 + dy**2)
-print("MEAN +/- SD:")
+print("Segment #: μ ± σ (in pixels)")
 mu = np.zeros(num_segments+1)
+mu_x = np.zeros(num_segments+1)
+mu_y = np.zeros(num_segments+1)
 sigma = np.zeros(num_segments+1)
+sigma_x = np.zeros(num_segments+1)
+sigma_y = np.zeros(num_segments+1)
 for i in range(num_segments+1):
+    print("Segment %d:" % (i+1))
     # calculate mean per segment
     mu[i] = np.nanmean(errordistance[segmentclass[:,i]])
+    mu_x[i] = np.nanmean(dx[segmentclass[:,i]])
+    mu_y[i] = np.nanmean(dy[segmentclass[:,i]])
     # calculate standard deviation per segment
     sigma[i] = np.nanstd(errordistance[segmentclass[:,i]])
-    print("Segment %d: %f +/- %f" % (i+1,mu[i],sigma[i]))
+    sigma_x[i] = np.nanstd(dx[segmentclass[:,i]])
+    sigma_y[i] = np.nanstd(dy[segmentclass[:,i]])
+    print("\t in x: %.2f +/- %.2f" % (mu_x[i],sigma_x[i]))
+    print("\t in y: %.2f +/- %.2f" % (mu_y[i],sigma_y[i]))
+    print("\t total: %.2f +/- %.2f" % (mu[i],sigma[i]))
 
 
 ########################## Construct Figure Segments ##########################

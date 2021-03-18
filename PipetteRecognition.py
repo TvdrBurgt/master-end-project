@@ -85,7 +85,7 @@ def detectPipettetip(I, upper_angle, lower_angle, diameter, blursize=15,
     
     # Canny edge detection
     print('II)\t Canny edge detection...')
-    BW = feature.canny(IB, sigma=10, low_threshold=0.98, high_threshold=0.7, use_quantiles=True)
+    BW = feature.canny(IB, sigma=10, low_threshold=0.9, high_threshold=0.7, use_quantiles=True)
     
     # Double-sided Hough transform
     print('III) Calculating Hough transform...')
@@ -121,11 +121,16 @@ def detectPipettetip(I, upper_angle, lower_angle, diameter, blursize=15,
     
     # account for xposition overestimation bias
     print('VI)\t Correcting for pipette diameter...')
-    deltax = (diameter/2)/np.sin(np.abs(angle1-angle2)/2)
-    deltay = (diameter/2)*np.cos((angle1+angle2)/2)
+    # deltax = (diameter/2)/np.sin(np.abs(angle1-angle2)/2)
+    # deltay = (diameter/2)*np.cos((angle1+angle2)/2)
+    # xpos = xpos - deltax
+    # ypos = ypos + deltay
+    deltax = (diameter*np.sin((angle1+angle2)/2))/(2*np.tan((angle1-angle2)/2))
+    deltay = -(diameter*np.cos((angle1+angle2)/2))/(2*np.tan((angle1-angle2)/2))
     xpos = xpos - deltax
-    ypos = ypos + deltay
-    print(deltay)
+    ypos = ypos - deltay    
+    print('dx = %.2f' % (deltax))
+    print('dy = %.2f' % (deltay))
     
     # plot figures if plotflag is True
     if plotflag:
