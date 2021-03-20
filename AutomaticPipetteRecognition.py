@@ -165,8 +165,8 @@ class DetectPipetteTips:
 
 
 if __name__ == '__main__':
-    path = r"C:\Users\tvdrb\Desktop\Thijs\XY grid"
-    savename = "XY grid algorithm"
+    path = r"C:\Users\tvdrb\Desktop\Thijs\Z stack"
+    savename = "Z stack algorithm"
     
     imagefolder = DetectPipetteTips(path)
     imagefolder.iterator()

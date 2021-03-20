@@ -18,8 +18,8 @@ import matplotlib.cm as cm
 path = r'C:\Users\tvdrb\Desktop\Pipette attenuations'
 
 # names of files to compare
-groundtruth = "XY grid attenuated"
-estimate = "XY grid algorithm bias corrected"
+groundtruth = "Z stack attenuated - kopie"
+estimate = "Z stack algorithm - kopie"
 
 # image size
 xsize = 2048
@@ -43,9 +43,9 @@ for index, row in groundtruth.iterrows():
         name.append(row[0])
         x1.append(row[1])
         y1.append(row[2])
-        x2.append(estimate.x[index])
+        x2.append(estimate.x[index]-50)
         y2.append(estimate.y[index])
-        dx.append(row[1] - estimate.x[index])
+        dx.append(row[1] - estimate.x[index]-50)
         dy.append(row[2] - estimate.y[index])
     else:
         print("Filename does not correspond:\n{}".format(row[0]))
@@ -101,6 +101,17 @@ for i in range(num_segments+1):
     print("\t in y: %.2f +/- %.2f" % (mu_y[i],sigma_y[i]))
     print("\t total: %.2f +/- %.2f" % (mu[i],sigma[i]))
 
+########################## Construct Figure Segments ##########################
+
+fig, axs = plt.subplots(1,2)
+axs[0].hist(dx[~np.isnan(dx)], bins=500)
+axs[0].set_title('X bias')
+axs[0].set_xlabel(r'Bias (in $\mu$m)')
+axs[0].set_ylabel('Count')
+axs[1].hist(dy[~np.isnan(dy)], bins=500)
+axs[1].set_title('Y bias')
+axs[1].set_xlabel(r'Bias (in $\mu$m)')
+axs[1].set_ylabel('Count')
 
 ########################## Construct Figure Segments ##########################
 fig,ax = plt.subplots()

@@ -12,7 +12,7 @@ import os
 # Tool for renaming images without timestamp
 # =============================================================================
 
-filepath = r'pathname'
+filepath = r'W:\staff-groups\tnw\ist\do\projects\Neurophotonics\Brinkslab\Data\Thijs\Z stack'
 
 yestoall = False
 notoall = False

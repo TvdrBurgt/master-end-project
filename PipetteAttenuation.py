@@ -15,10 +15,10 @@ from skimage import io
 
 
 # target folder containing the images to be annotated
-path = r'C:\Users\tvdrb\Desktop\Thijs\Translation space'
+path = r'C:\Users\tvdrb\Desktop\Thijs\Z stack'
 
 # name of .txt in which to save pipette coordinates
-savename = 'Translation space attenuated'
+savename = 'Z stack attenuated'
 
 # list to save the pipette tip coordinates in
 coordinateclicks = []
@@ -68,4 +68,3 @@ with open(path+'\\'+savename, 'w') as txtfile:
         txtfile.write("{};".format(item[0]))
         txtfile.write("%d;" % item[1][0])
         txtfile.write("%d\n" % item[1][1])
-        
