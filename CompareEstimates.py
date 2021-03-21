@@ -43,9 +43,9 @@ for index, row in groundtruth.iterrows():
         name.append(row[0])
         x1.append(row[1])
         y1.append(row[2])
-        x2.append(estimate.x[index]-50)
+        x2.append(estimate.x[index])
         y2.append(estimate.y[index])
-        dx.append(row[1] - estimate.x[index]-50)
+        dx.append(row[1] - estimate.x[index])
         dy.append(row[2] - estimate.y[index])
     else:
         print("Filename does not correspond:\n{}".format(row[0]))

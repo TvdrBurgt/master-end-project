@@ -70,8 +70,6 @@ def variance_of_laplacian(image):
         Sharpness of the image, the higher the better.
  
     """
-    # if image.shape[2] == 3:
-    #     image = rgb2gray(image)
    
     # Blur the image a bit.
     image = cv2.GaussianBlur(image, (13, 13), 3)
