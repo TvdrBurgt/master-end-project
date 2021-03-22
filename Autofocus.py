@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage import io, filters
 import cv2
+import time
 
 # =============================================================================
 # Automatic pipette focus v2
@@ -19,23 +20,33 @@ filepath = r"C:\Users\tvdrb\Desktop\Thijs\Z stack.tif"
 I = io.imread(filepath)
 
 
-def cropImage(imagestack,xpos,ypos,xsize,ysize):
+import scipy.stats as st
+def gkern(kernlen=21, nsig=3):
+    """Returns a 2D Gaussian kernel."""
+
+    x = np.linspace(-nsig, nsig, kernlen+1)
+    kern1d = np.diff(st.norm.cdf(x))
+    kern2d = np.outer(kern1d, kern1d)
+    return kern2d/kern2d.sum()
+
+
+def makeGaussian(size, fwhm = 3, center=None):
+    """ Make a square gaussian kernel.
+    size is the length of a side of the square
+    fwhm is full-width-half-maximum, which
+    can be thought of as an effective radius.
     """
-    This image crops the input in X and Y for every Z.
-    """
-    # get depth of image stack
-    depth = imagestack.shape[0]
+
+    x = np.arange(0, size, 1, float)
+    y = x[:,np.newaxis]
     
-    # crop Z stack in the XY-plane
-    cropped = np.empty((depth,ysize,xsize))
-    for i in range(depth):
-        left = round(xcenter - xsize/2)
-        right = round(xcenter + xsize/2)
-        up = round(ycenter - ysize/2)
-        down = round(ycenter + ysize/2)
-        cropped[i,:,:] = imagestack[i,up:down,left:right]
-     
-    return cropped
+    if center is None:
+        x0 = y0 = size // 2
+    else:
+        x0 = center[0]
+        y0 = center[1]
+    
+    return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
 
 def outoffocusPenalty(img):
@@ -92,23 +103,20 @@ depth = I.shape[0]
 height = I.shape[1]
 width = I.shape[2]
 
-# crop image
-print("Cropping images...")
-xcenter = width/2
-ycenter = height/2 - 50
-xsize = 204
-ysize = 204
-Icropped = cropImage(I, xcenter, ycenter, xsize, ysize)
+# constructing Gaussian kernel
+kernel = gkern(2048,5)
+kernel = makeGaussian(2048, fwhm=256)
 
-# calculate focus penalty
+# calculate focus penalty in a confined region
 print("Calculating penalties...")
 variance = np.empty(depth)
 variance_Xin = np.empty(depth)
 for i in range(depth):
-    variance[i] = outoffocusPenalty(Icropped[i,:,:])
-    variance_Xin[i] = variance_of_laplacian(Icropped[i,:,:])
-    if i == 25:
-        plt.matshow(Icropped[i,:,:], cmap='gray')
+    start = time.time()
+    IK = I[i] * kernel
+    variance[i] = outoffocusPenalty(IK)
+    variance_Xin[i] = variance_of_laplacian(IK)
+    print(time.time()-start)
 
 # manually saved z positions
 zpos = np.concatenate([np.arange(-300, -250, 50),
