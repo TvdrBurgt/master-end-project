@@ -11,6 +11,8 @@ from skimage import io, filters
 import cv2
 import time
 
+from scipy.optimize import curve_fit
+
 # =============================================================================
 # Automatic pipette focus v2
 # =============================================================================
@@ -18,16 +20,6 @@ import time
 # load tiff
 filepath = r"C:\Users\tvdrb\Desktop\Thijs\Z stack.tif"
 I = io.imread(filepath)
-
-
-import scipy.stats as st
-def gkern(kernlen=21, nsig=3):
-    """Returns a 2D Gaussian kernel."""
-
-    x = np.linspace(-nsig, nsig, kernlen+1)
-    kern1d = np.diff(st.norm.cdf(x))
-    kern2d = np.outer(kern1d, kern1d)
-    return kern2d/kern2d.sum()
 
 
 def makeGaussian(size, fwhm = 3, center=None):
@@ -54,10 +46,12 @@ def outoffocusPenalty(img):
     This functions calculates a penalty score that is minimum for sharp images.
     """
     # average images
-    img_average = filters.gaussian(img, 5)
+    img_average = filters.gaussian(img, 4)
     
     # calculate laplacian
     img_laplace = filters.laplace(img_average, 3)
+    # img_laplace = filters.scharr_v(img_average)
+    # img_laplace = filters.scharr_h(img_laplace)
     
     # calculate variance
     penalty = np.var(img_laplace)
@@ -104,19 +98,20 @@ height = I.shape[1]
 width = I.shape[2]
 
 # constructing Gaussian kernel
-kernel = gkern(2048,5)
-kernel = makeGaussian(2048, fwhm=256)
+kernel = makeGaussian(2048, fwhm=512)
 
 # calculate focus penalty in a confined region
 print("Calculating penalties...")
 variance = np.empty(depth)
-variance_Xin = np.empty(depth)
+# variance_Xin = np.empty(depth)
+startstart = time.time()
 for i in range(depth):
     start = time.time()
     IK = I[i] * kernel
     variance[i] = outoffocusPenalty(IK)
-    variance_Xin[i] = variance_of_laplacian(IK)
+    # variance_Xin[i] = variance_of_laplacian(IK)
     print(time.time()-start)
+print(time.time()-startstart)
 
 # manually saved z positions
 zpos = np.concatenate([np.arange(-300, -250, 50),
@@ -131,23 +126,32 @@ zpos = np.concatenate([np.arange(-300, -250, 50),
                         np.arange(250, 500, 50),
                         np.arange(500, 2000.001, 100)])
 # zpos = np.concatenate([np.arange(-350, -250, 50),
-#                        np.arange(-250, -100, 25),
-#                        np.arange(-100, -50, 10),
-#                        np.arange(-50, -10.001, 5),
-#                        np.arange(0, 5.001, 1),
-#                        np.arange(5, 100, 10),
-#                        np.arange(100, 500, 50),
-#                        np.arange(500, 1000, 100),
-#                        np.arange(1000, 2000, 250),
-#                        np.arange(2000, 3000.001, 500)])
+#                         np.arange(-250, -100, 25),
+#                         np.arange(-100, -50, 10),
+#                         np.arange(-50, -10.001, 5),
+#                         np.arange(0, 5.001, 1),
+#                         np.arange(5, 100, 10),
+#                         np.arange(100, 500, 50),
+#                         np.arange(500, 1000, 100),
+#                         np.arange(1000, 2000, 250),
+#                         np.arange(2000, 3000.001, 500)])
+
+# fit gaussian
+def gauss(x,amplitude,mu,sigma):
+    return amplitude*np.exp(-(x-mu)**2/(2*sigma**2))
+
+mean = sum(zpos*variance)/sum(variance)
+sigma = np.sqrt(sum(variance*(zpos - mean)**2)/sum(variance))
+popt,pcov = curve_fit(gauss, zpos, variance)
+
 
 # plot figures
-fig, axs = plt.subplots(1,2)
-axs[0].plot(zpos,variance)
-axs[0].set_title('Autofocus Thijs')
-axs[0].set_xlabel(r'Focus depth (in $\mu$m)')
-axs[0].set_ylabel(r'Variance of Laplacian (a.u.)')
-axs[1].plot(zpos,variance_Xin)
-axs[1].set_title('Autofocus Xin')
-axs[1].set_xlabel(r'Focus depth (in $\mu$m)')
-axs[1].set_ylabel(r'Variance of Laplacian (a.u.)')
+plt.matshow(I[85]*kernel, cmap='gray') # 85 corresponds to Z=0
+
+plt.figure()
+plt.plot(zpos, variance, label='autofocus output')
+plt.title('Autofocus Thijs')
+plt.xlabel(r'Focus depth (in $\mu$m)')
+plt.ylabel(r'Variance of Laplacian (a.u.)')
+plt.plot(zpos, gauss(zpos, *popt), 'r-', label='fit')
+plt.show()
