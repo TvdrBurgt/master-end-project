@@ -12,7 +12,7 @@ import os
 # Tool for renaming images without timestamp
 # =============================================================================
 
-filepath = r'W:\staff-groups\tnw\ist\do\projects\Neurophotonics\Brinkslab\Data\Thijs\Z stack'
+filepath = r'W:\staff-groups\tnw\ist\do\projects\Neurophotonics\Brinkslab\Data\Thijs\XY grid\2021-03-23'
 
 yestoall = False
 notoall = False
@@ -38,7 +38,11 @@ for count, oldfilename in enumerate(os.listdir(filepath)):
         elif x == 'no to all':
             break
     
-    # rename filename
+    # rename filename if filename is unique
     if x == 'y' or x == 'yes' or yestoall:
-        os.rename(filepath+'/'+oldfilename, filepath+'/'+newfilename)
+        try:
+            os.rename(filepath+'/'+oldfilename, filepath+'/'+newfilename)
+        except:
+            print("File name is not unique: {}".format(newfilename))
+            break
     
