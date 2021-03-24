@@ -8,19 +8,11 @@ Created on Fri Mar 19 14:11:17 2021
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import io, filters
-import cv2
 import time
-
-from scipy.optimize import curve_fit
 
 # =============================================================================
 # Automatic pipette focus v2
 # =============================================================================
-
-# load tiff
-filepath = r"C:\Users\tvdrb\Desktop\Thijs\Z stack.tif"
-I = io.imread(filepath)
-
 
 def makeGaussian(size, fwhm = 3, center=None):
     """ Make a square gaussian kernel.
@@ -41,7 +33,7 @@ def makeGaussian(size, fwhm = 3, center=None):
     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
 
-def outoffocusPenalty(img):
+def varianceOfLaplacian(img):
     """
     This functions calculates a penalty score that is minimum for sharp images.
     """
@@ -50,8 +42,6 @@ def outoffocusPenalty(img):
     
     # calculate laplacian
     img_laplace = filters.laplace(img_average, 3)
-    # img_laplace = filters.scharr_v(img_average)
-    # img_laplace = filters.scharr_h(img_laplace)
     
     # calculate variance
     penalty = np.var(img_laplace)
@@ -59,99 +49,76 @@ def outoffocusPenalty(img):
     return penalty
 
 
-def variance_of_laplacian(image):
+def outoffocusPenalty(img):
     """
-    Compute the Laplacian of the image and then return the focus
-    measure, which is simply the variance of the Laplacian       
- 
-    Parameters
-    ----------
-    image : np.array
-        Gray scale input image.
- 
-    Returns
-    -------
-    sharpness : float
-        Sharpness of the image, the higher the better.
- 
+    This function iterates over all images in the Z stack and calculates the
+    out-of-focus penalty per image.
     """
-   
-    # Blur the image a bit.
-    image = cv2.GaussianBlur(image, (13, 13), 3)
-   
-    # convolution of 3 x 3 kernel, according to different datatype.
-    if type(image[0,0])==np.float32:
-        sharpness = cv2.Laplacian(image, cv2.CV_32F).var()
-    elif type(image[0,0])==np.float64:
-        sharpness = cv2.Laplacian(image, cv2.CV_64F).var()
-    elif type(image[0,0])==np.uint8:
-        sharpness = cv2.Laplacian(image, cv2.CV_8U).var()
-    elif type(image[0,0])==np.uint16:
-        sharpness = cv2.Laplacian(image, cv2.CV_16U).var()
-       
-    return sharpness
+    depth = img.shape[0]
+    height = img.shape[1]
+    width = img.shape[2]
+    
+    # constructing Gaussian kernel
+    kernel = makeGaussian(width, fwhm=width/4)
+    
+    print("Calculating penalties...")
+    variance = np.empty(depth)
+    for i in range(depth):
+        IK = img[i] * kernel
+        variance[i] = varianceOfLaplacian(IK)
+        print(variance[i])
+    
+    return variance
 
 
-# get image stack dimensions
-depth = I.shape[0]
-height = I.shape[1]
-width = I.shape[2]
+# load tiff
+filepath_2021_03_03 = r"C:\Users\tvdrb\Desktop\Thijs\Z stack\Z stack 2021-03-03.tif"
+filepath_2021_03_18 = r"C:\Users\tvdrb\Desktop\Thijs\Z stack\Z stack 2021-03-18.tif"
+filepath_2021_03_23 = r"C:\Users\tvdrb\Desktop\Thijs\Z stack\Z stack 2021-03-23.tif"
 
-# constructing Gaussian kernel
-kernel = makeGaussian(2048, fwhm=512)
-
-# calculate focus penalty in a confined region
-print("Calculating penalties...")
-variance = np.empty(depth)
-# variance_Xin = np.empty(depth)
-startstart = time.time()
-for i in range(depth):
-    start = time.time()
-    IK = I[i] * kernel
-    variance[i] = outoffocusPenalty(IK)
-    # variance_Xin[i] = variance_of_laplacian(IK)
-    print(time.time()-start)
-print(time.time()-startstart)
+# calculate out-of-focus penalty for every Z stack
+variance_2021_03_03 = outoffocusPenalty(io.imread(filepath_2021_03_03))
+variance_2021_03_18 = outoffocusPenalty(io.imread(filepath_2021_03_18))
+variance_2021_03_23 = outoffocusPenalty(io.imread(filepath_2021_03_23))
 
 # manually saved z positions
-zpos = np.concatenate([np.arange(-300, -250, 50),
-                        np.arange(-250, -100, 25),
-                        np.arange(-100, -50, 10),
-                        np.arange(-50, -3, 1),
-                        np.arange(-3, -2.5, 0.5),
-                        np.arange(-2.5, 5, 0.1),
-                        np.arange(5, 50.001, 1),
-                        np.arange(70, 100, 10),
-                        np.arange(100, 250, 25),
-                        np.arange(250, 500, 50),
-                        np.arange(500, 2000.001, 100)])
-# zpos = np.concatenate([np.arange(-350, -250, 50),
-#                         np.arange(-250, -100, 25),
-#                         np.arange(-100, -50, 10),
-#                         np.arange(-50, -10.001, 5),
-#                         np.arange(0, 5.001, 1),
-#                         np.arange(5, 100, 10),
-#                         np.arange(100, 500, 50),
-#                         np.arange(500, 1000, 100),
-#                         np.arange(1000, 2000, 250),
-#                         np.arange(2000, 3000.001, 500)])
-
-# fit gaussian
-def gauss(x,amplitude,mu,sigma):
-    return amplitude*np.exp(-(x-mu)**2/(2*sigma**2))
-
-mean = sum(zpos*variance)/sum(variance)
-sigma = np.sqrt(sum(variance*(zpos - mean)**2)/sum(variance))
-popt,pcov = curve_fit(gauss, zpos, variance)
-
+# Translate in Z, #24 corresponds to z=0
+zpos_2021_03_03 = np.concatenate([np.arange(-350, -250, 50),
+                                  np.arange(-250, -100, 25),
+                                  np.arange(-100, -50, 10),
+                                  np.arange(-50, -10.001, 5),
+                                  np.arange(0, 5.001, 1),
+                                  np.arange(5, 100, 10),
+                                  np.arange(100, 500, 50),
+                                  np.arange(500, 1000, 100),
+                                  np.arange(1000, 2000, 250),
+                                  np.arange(2000, 3000.001, 500)])
+# Z stack 2021-03-18, #85 corresponds to z=0
+zpos_2021_03_18 = np.concatenate([np.arange(-300, -250, 50),
+                                  np.arange(-250, -100, 25),
+                                  np.arange(-100, -50, 10),
+                                  np.arange(-50, -3, 1),
+                                  np.arange(-3, -2.5, 0.5),
+                                  np.arange(-2.5, 5, 0.1),
+                                  np.arange(5, 50, 1),
+                                  np.arange(50, 100, 10),
+                                  np.arange(100, 250, 25),
+                                  np.arange(250, 500, 50),
+                                  np.arange(500, 2000.001, 100)])
+# Z stack 2021-03-23, #13 corresponds to z=0
+zpos_2021_03_23 = np.concatenate([np.arange(-30, -10, 10),
+                                  np.arange(-10, 0.001, 1),
+                                  np.arange(0, 10, 1),
+                                  np.arange(10, 100, 10),
+                                  np.arange(100, 200.001, 100)])
 
 # plot figures
-plt.matshow(I[85]*kernel, cmap='gray') # 85 corresponds to Z=0
-
 plt.figure()
-plt.plot(zpos, variance, label='autofocus output')
+plt.plot(zpos_2021_03_03, variance_2021_03_03/max(variance_2021_03_03), label='Autofocus 2021/03/03')
+plt.plot(zpos_2021_03_18, variance_2021_03_18/max(variance_2021_03_18), label='Autofocus 2021/03/18')
+plt.plot(zpos_2021_03_23, variance_2021_03_23/max(variance_2021_03_23), label='Autofocus 2021/03/23')
 plt.title('Autofocus Thijs')
 plt.xlabel(r'Focus depth (in $\mu$m)')
 plt.ylabel(r'Variance of Laplacian (a.u.)')
-plt.plot(zpos, gauss(zpos, *popt), 'r-', label='fit')
+plt.legend()
 plt.show()
