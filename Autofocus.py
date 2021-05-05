@@ -8,7 +8,6 @@ Created on Fri Mar 19 14:11:17 2021
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import io, filters
-import time
 
 # =============================================================================
 # Automatic pipette focus v2
@@ -54,19 +53,20 @@ def outoffocusPenalty(img):
     This function iterates over all images in the Z stack and calculates the
     out-of-focus penalty per image.
     """
-    depth = img.shape[0]
-    height = img.shape[1]
-    width = img.shape[2]
+    # get Z-stack dimensions
+    depth, height, width = img.shape
     
     # constructing Gaussian kernel
-    kernel = makeGaussian(width, fwhm=width/4)
+    kernel = makeGaussian(width, fwhm=width/8)
     
     print("Calculating penalties...")
     variance = np.empty(depth)
-    for i in range(depth):
-        IK = img[i] * kernel
-        variance[i] = varianceOfLaplacian(IK)
-        print(variance[i])
+    for idx in range(depth):
+        IK = img[idx] * kernel
+        variance[idx] = varianceOfLaplacian(IK)
+        print(variance[idx])
+        if idx == 0:
+            plt.imshow(IK)
     
     return variance
 
@@ -112,13 +112,51 @@ zpos_2021_03_23 = np.concatenate([np.arange(-30, -10, 10),
                                   np.arange(10, 100, 10),
                                   np.arange(100, 200.001, 100)])
 
+# Remove badly saved image
+zpos_2021_03_18=np.delete(zpos_2021_03_18,181)
+variance_2021_03_18=np.delete(variance_2021_03_18,181)
+
+
 # plot figures
 plt.figure()
-plt.plot(zpos_2021_03_03, variance_2021_03_03/max(variance_2021_03_03), label='Autofocus 2021/03/03')
-plt.plot(zpos_2021_03_18, variance_2021_03_18/max(variance_2021_03_18), label='Autofocus 2021/03/18')
-plt.plot(zpos_2021_03_23, variance_2021_03_23/max(variance_2021_03_23), label='Autofocus 2021/03/23')
-plt.title('Autofocus Thijs')
+plt.plot(zpos_2021_03_03, variance_2021_03_03, label='Autofocus 2021/03/03')
+plt.plot(zpos_2021_03_18, variance_2021_03_18, label='Autofocus 2021/03/18')
+plt.plot(zpos_2021_03_23, variance_2021_03_23, label='Autofocus 2021/03/23')
+plt.title('Autofocus scores')
 plt.xlabel(r'Focus depth (in $\mu$m)')
 plt.ylabel(r'Variance of Laplacian (a.u.)')
 plt.legend()
 plt.show()
+
+plt.figure()
+plt.plot(zpos_2021_03_03, variance_2021_03_03/max(variance_2021_03_03), label='Autofocus 2021/03/03 (normalized)')
+plt.plot(zpos_2021_03_18, variance_2021_03_18/max(variance_2021_03_18), label='Autofocus 2021/03/18 (normalized)')
+plt.plot(zpos_2021_03_23, variance_2021_03_23/max(variance_2021_03_23), label='Autofocus 2021/03/23 (normalized)')
+plt.title('Autofocus scores (normalized)')
+plt.xlabel(r'Focus depth (in $\mu$m)')
+plt.ylabel(r'Variance of Laplacian (a.u.)')
+plt.legend()
+plt.show()
+
+plt.figure()
+plt.plot(zpos_2021_03_18[0:-1], np.diff(variance_2021_03_18), label='Autofocus 2021/03/18 (normalized)')
+
+
+#%% 
+historydatapath = r'W:\staff-groups\tnw\ist\do\projects\Neurophotonics\Brinkslab\Data\Thijs\Z stack\Autofocus data'
+
+position = np.loadtxt(historydatapath + "\\positionhistorybugfix95.txt")
+penalties = np.loadtxt(historydatapath + "\\penaltyhistorybugfix95.txt")
+
+# plot penalty graph
+plt.figure()
+plt.scatter(position/100, penalties, c=np.linspace(0,1,len(position)), cmap='rainbow')
+plt.title('Sharpness function')
+plt.xlabel(r'Focus depth (in $\mu$m)')
+plt.ylabel(r'Variance of Laplacian (a.u.)')
+cbar = plt.colorbar(ticks=[0,1])
+cbar.ax.set_yticklabels(['first step','last step'])
+plt.show()
+
+
+
