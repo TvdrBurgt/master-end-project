@@ -15,10 +15,10 @@ from skimage import io
 
 
 # target folder containing the images to be annotated
-path = r'C:\Users\tvdrb\Desktop\Thijs\Z stack'
+path = r'C:\Users\tvdrb\Desktop\Thijs\XY grid\2021-03-23'
 
 # name of .txt in which to save pipette coordinates
-savename = 'Z stack attenuated'
+savename = 'XY grid 2021-03-23 attenuated'
 
 # list to save the pipette tip coordinates in
 coordinateclicks = []

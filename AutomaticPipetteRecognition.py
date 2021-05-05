@@ -100,11 +100,12 @@ class DetectPipetteTips:
             self.pipettetips.append([filename, (x, y)])
             
     
-    def cropImage(self,I,xpos,ypos,xsize=204,ysize=204):
+    def cropImage(self,I,xpos,ypos,xsize=600,ysize=150):
         """
         This functions crops the input figure around the coordinates from the
         first tip detection algorithm.
         """
+        
         # round pipette coordinates to integers
         xpos = np.round(xpos)
         ypos = np.round(ypos)
@@ -165,8 +166,8 @@ class DetectPipetteTips:
 
 
 if __name__ == '__main__':
-    path = r"C:\Users\tvdrb\Desktop\Thijs\Z stack"
-    savename = "Z stack algorithm"
+    path = r"C:\Users\tvdrb\Desktop\Thijs\XY grid\2021-03-23"
+    savename = "XY grid 2021-03-23 algorithm"
     
     imagefolder = DetectPipetteTips(path)
     imagefolder.iterator()

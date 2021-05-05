@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 # =============================================================================
 
 # load tiff
-filepath = r"C:\Users\tvdrb\Desktop\Thijs\XY grid\grid 150 -100 0.tif"
+filepath = r"C:\Users\tvdrb\Desktop\Thijs\XY grid\2021-03-23\grid 200 200 0.tif"
 I = io.imread(filepath)
 
 ######################### parameter settings #########################
@@ -71,12 +71,15 @@ def detectPipettetip(I, upper_angle, lower_angle, diameter, blursize=15,
                      angle_range=10, num_angles=5000, num_peaks=8, plotflag=True):
     """ 
     Tip detection algorithm 
-    software parameters:
-    blursize    = kernel size for gaussian blur
-    angle_range = angle search range (in degree)
-    num_angles  = number of sampling angles in Hough transform
-    num_peaks   = number of peaks to find in Hough space
-    plotflag    = if True it will generate figures
+    input parameters:
+        blursize    = kernel size for gaussian blur
+        angle_range = angle search range (in degree)
+        num_angles  = number of sampling angles in Hough transform
+        num_peaks   = number of peaks to find in Hough space
+        plotflag    = if True it will generate figures
+    output parameters:
+        xpos        = x position of the pipette tip
+        ypos        = y position of the pipette tip
     """
     
     # Gaussian blur
@@ -121,10 +124,6 @@ def detectPipettetip(I, upper_angle, lower_angle, diameter, blursize=15,
     
     # account for xposition overestimation bias
     print('VI)\t Correcting for pipette diameter...')
-    # deltax = (diameter/2)/np.sin(np.abs(angle1-angle2)/2)
-    # deltay = (diameter/2)*np.cos((angle1+angle2)/2)
-    # xpos = xpos - deltax
-    # ypos = ypos + deltay
     deltax = (diameter*np.sin((angle1+angle2)/2))/(2*np.tan((angle1-angle2)/2))
     deltay = -(diameter*np.cos((angle1+angle2)/2))/(2*np.tan((angle1-angle2)/2))
     xpos = xpos - deltax
