@@ -6,51 +6,30 @@ Created on Mon Apr 12 10:37:51 2021
 """
 
 import sys
-import numpy as np
+
+from PyQt5 import QtWidgets
+from PyQt5.QtCore import QThread
+from PyQt5.QtWidgets import QWidget, QGridLayout, QPushButton, QGroupBox
+import pyqtgraph.exporters
 import pyqtgraph as pg
-from copy import copy
-from PyQt5 import QtWidgets, QtCore
-from PyQt5.Qt import QMutex
+
+from example_backend import AutomaticPatcher
 
 
-class DataGenerator(QtCore.QObject):
-
-    newData = QtCore.pyqtSignal(np.ndarray)
-
-    def __init__(self, parent=None, delay=1000):
-        QtCore.QObject.__init__(self)
-        self.parent = parent
-        self.delay = delay
-        self.mutex = QMutex()
-        self.image = np.zeros((2048, 2048))
-        self.run = True
-
-    def generateData(self):
-        while self.run:
-            try:
-                self.mutex.lock()
-                self.image = np.random.rand(2048, 2048)
-                self.mutex.unlock()
-                self.newData.emit(self.image)
-                QtCore.QThread.msleep(self.delay)
-            except:
-                pass
-
-
-class MainWin(QtWidgets.QWidget):
+class PatchClampUI(QWidget):
     def __init__(self, camera_handle=None, motor_handle=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ======================================================================
+        # =====================================================================
         # ---------------------------- Start of GUI ---------------------------
         # =====================================================================
         # ----------------------- General widget settings ---------------------
         self.setWindowTitle("Automatic Patchclamp")
 
         # ---------------------------- Snapshot view --------------------------
-        snapshotContainer = QtWidgets.QGroupBox()
+        snapshotContainer = QGroupBox()
         snapshotContainer.setMinimumSize(600, 600)
-        snapshotLayout = QtWidgets.QGridLayout()
+        snapshotLayout = QGridLayout()
 
         # Display to project snapshots
         self.snapshotWidget = pg.ImageView()
@@ -63,22 +42,24 @@ class MainWin(QtWidgets.QWidget):
         snapshotLayout.addWidget(self.snapshotWidget, 0, 0, 1, 3)
 
         # Button for automatic focussing a pipette
-        request_autofocus_button = QtWidgets.QPushButton("Autofocus pipette")
+        request_autofocus_button = QPushButton("Autofocus pipette")
+        # request_autofocus_button.clicked.connect(self.autofocus)
         snapshotLayout.addWidget(request_autofocus_button, 1, 0, 1, 1)
 
         # Button for making a snapshot
-        request_camera_image_button = QtWidgets.QPushButton("Snap image")
-        request_camera_image_button.clicked.connect(self.snap)
+        request_camera_image_button = QPushButton("Snap image")
+        request_camera_image_button.clicked.connect(self.snap_shot)
         snapshotLayout.addWidget(request_camera_image_button, 1, 1, 1, 1)
 
         # Button for detecting pipette tip
-        request_pipette_coordinates_button = QtWidgets.QPushButton("Detect pipette tip")
+        request_pipette_coordinates_button = QPushButton("Detect pipette tip")
+        # request_pipette_coordinates_button.clicked.connect(self.localize_pipette)
         snapshotLayout.addWidget(request_pipette_coordinates_button, 1, 2, 1, 1)
 
         snapshotContainer.setLayout(snapshotLayout)
 
         # -------------------------- Adding to master -------------------------
-        master = QtWidgets.QGridLayout()
+        master = QGridLayout()
         master.addWidget(snapshotContainer, 0, 0, 1, 1)
 
         self.setLayout(master)
@@ -87,23 +68,36 @@ class MainWin(QtWidgets.QWidget):
         # ---------------------------- End of GUI -----------------------------
         # =====================================================================
 
-        self.thread = QtCore.QThread()
-        self.dgen = DataGenerator(self, delay=1)
-        self.dgen.moveToThread(self.thread)
-        # self.dgen.newData.connect(self.update_plot)
-        self.thread.started.connect(self.dgen.generateData)
+        # Initiate backend
+        self.autopatch_instance = AutomaticPatcher()
+
+        # Move backend to a thread
+        self.thread = QThread()
+        self.autopatch_instance.moveToThread(self.thread)
+
+        # Connect our GUI display to the newimage slot
+        self.autopatch_instance.newimage.connect(self.update_graph)
+
+        # Run backend when thread is started
+        self.thread.started.connect(self.autopatch_instance.run)
+
+        # Start thread
         self.thread.start()
 
-    def snap(self):
-        self.dgen.newData.connect(self.update_plot)
+    def snap_shot(self):
+        # Request a snapshot from the camera thread
+        self.autopatch_instance.snap_image()
 
-    def update_plot(self, image):
-        if self.dgen.mutex.tryLock():
-            image = copy(image)
-            self.dgen.mutex.unlock()
-            self.canvas.setImage(image)
+    def update_graph(self, image):
+        # Display the newly snapped image
+        self.canvas.setImage(image)
 
     def closeEvent(self, event):
+        """ Interupts widget processes
+        
+        On closing the application we have to make sure that the console
+        gets freed.
+        """
         QtWidgets.QApplication.quit()
         event.accept()
 
@@ -115,7 +109,7 @@ if __name__ == "__main__":
         pg.setConfigOptions(
             imageAxisOrder="row-major"
         )  # Transposes image in pg.ImageView()
-        mainwin = MainWin()
+        mainwin = PatchClampUI()
         mainwin.show()
         app.exec_()
 

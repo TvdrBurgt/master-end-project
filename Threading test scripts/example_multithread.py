@@ -27,6 +27,7 @@ class Runnable(QRunnable):
             logging.info(f"Working in thread {self.n}, step {i + 1}/5")
             time.sleep(random.randint(700, 2500) / 1000)
 
+
 class Window(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,6 +58,7 @@ class Window(QMainWindow):
             runnable = Runnable(i)
             # 3. Call start()
             pool.start(runnable)
+
 
 app = QApplication(sys.argv)
 window = Window()
