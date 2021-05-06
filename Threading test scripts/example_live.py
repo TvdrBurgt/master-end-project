@@ -6,13 +6,36 @@ Created on Mon Apr 12 10:37:51 2021
 """
 
 import sys
+import numpy as np
 import pyqtgraph as pg
+from copy import copy
 from PyQt5 import QtWidgets, QtCore
+from PyQt5.Qt import QMutex
 
-from backend import AutomaticPatcher
 
+class DataGenerator(QtCore.QObject):
 
-class PatchClampUI(QtWidgets.QWidget):
+    newData  = QtCore.pyqtSignal(np.ndarray)
+    
+    def __init__(self,parent=None, delay=1000):
+        QtCore.QObject.__init__(self)
+        self.parent = parent
+        self.delay  = delay
+        self.mutex  = QMutex()        
+        self.image  = np.zeros((2048,2048))
+        self.run    = True    
+        
+    def generateData(self):
+        while self.run:
+            try:
+                self.mutex.lock()            
+                self.image = np.random.rand(2048,2048)
+                self.mutex.unlock()
+                self.newData.emit(self.image)
+                QtCore.QThread.msleep(self.delay)
+            except: pass
+
+class MainWin(QtWidgets.QWidget):
     
     def __init__(self, camera_handle = None, motor_handle = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -63,18 +86,21 @@ class PatchClampUI(QtWidgets.QWidget):
         #---------------------------- End of GUI ------------------------------
         #======================================================================
         
-        self.autopatch_instance = AutomaticPatcher(self)
-        
-        
-        
-        
-    def snap(self):
         self.thread = QtCore.QThread()
-        self.autopatch_instance.moveToThread(self.thread)
-        self.thread.started.connect(self.autopatch_instance.take_snap)
-        self.autopatch_instance.finished.connect(self.thread.quit)
+        self.dgen = DataGenerator(self, delay=1)
+        self.dgen.moveToThread(self.thread)
+        # self.dgen.newData.connect(self.update_plot)
+        self.thread.started.connect(self.dgen.generateData)
         self.thread.start()
         
+    def snap(self):
+        self.dgen.newData.connect(self.update_plot)
+    
+    def update_plot(self,image):
+        if self.dgen.mutex.tryLock(): 
+            image = copy(image)
+            self.dgen.mutex.unlock() 
+            self.canvas.setImage(image)
     
     def closeEvent(self, event):
         QtWidgets.QApplication.quit()
@@ -85,7 +111,7 @@ if __name__ == "__main__":
     def run_app():
         app = QtWidgets.QApplication(sys.argv)
         pg.setConfigOptions(imageAxisOrder='row-major') #Transposes image in pg.ImageView()
-        mainwin = PatchClampUI()
+        mainwin = MainWin()
         mainwin.show()
         app.exec_()
     run_app()
