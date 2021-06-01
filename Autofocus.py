@@ -143,10 +143,14 @@ plt.plot(zpos_2021_03_18[0:-1], np.diff(variance_2021_03_18), label='Autofocus 2
 
 
 #%% 
+
+import numpy as np
+import matplotlib.pyplot as plt
+
 historydatapath = r'W:\staff-groups\tnw\ist\do\projects\Neurophotonics\Brinkslab\Data\Thijs\Z stack\Autofocus data'
 
-position = np.loadtxt(historydatapath + "\\positionhistorybugfix95.txt")
-penalties = np.loadtxt(historydatapath + "\\penaltyhistorybugfix95.txt")
+position = np.loadtxt(historydatapath + "\\positionhistory_coarse_run4.txt")
+penalties = np.loadtxt(historydatapath + "\\penaltyhistory_coarse_run4.txt")
 
 # plot penalty graph
 plt.figure()
