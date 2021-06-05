@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import QWidget, QGridLayout, QPushButton, QGroupBox
 import pyqtgraph.exporters
 import pyqtgraph as pg
 
-from example_backend_v2 import CameraThread, AutoPatchThread
+from example_backend import CameraThread, AutoPatchThread
 
 
 class PatchClampUI(QWidget):
@@ -52,18 +52,28 @@ class PatchClampUI(QWidget):
         
         # Button for starting camera acquisition. This button is a property of
         # the container because we need its checkable state in a function.
-        self.request_autofocus_button = QPushButton("Pause live")
-        self.request_autofocus_button.setCheckable(True)
-        self.request_autofocus_button.clicked.connect(self.toggle_live)
-        snapshotLayout.addWidget(self.request_autofocus_button, 1, 0, 1, 2)
+        self.request_pause_button = QPushButton("Pause live")
+        self.request_pause_button.setCheckable(True)
+        self.request_pause_button.clicked.connect(self.toggle_live)
+        snapshotLayout.addWidget(self.request_pause_button, 1, 0, 1, 1)
 
         # Button for making a snapshot
-        request_camera_image_button = QPushButton("Snap image")
-        request_camera_image_button.clicked.connect(self.request_snap)
-        snapshotLayout.addWidget(request_camera_image_button, 1, 2, 1, 2)
+        request_camera_image_button = QPushButton("Snap image", clicked=self.request_snap)
+        # request_camera_image_button.clicked.connect(self.request_snap)
+        snapshotLayout.addWidget(request_camera_image_button, 1, 1, 1, 1)
+        
+        # Button for autofocus
+        request_autofocus_button = QPushButton("Autofocus")
+        request_autofocus_button.clicked.connect(self.request_autofocus)
+        snapshotLayout.addWidget(request_autofocus_button, 1, 2, 1, 1)
+        
+        # Button for pipette detection
+        request_detection_button = QPushButton("Detect pipette")
+        request_detection_button.clicked.connect(self.request_detect)
+        snapshotLayout.addWidget(request_detection_button, 1, 3, 1, 1)
 
         snapshotContainer.setLayout(snapshotLayout)
-
+        
         # -------------------------- Adding to master -------------------------
         master = QGridLayout()
         master.addWidget(snapshotContainer, 0, 0, 1, 1)
@@ -74,28 +84,38 @@ class PatchClampUI(QWidget):
         # ---------------------------- End of GUI -----------------------------
         # =====================================================================
         
-        # Initiate backend threads
-        self.camerathread = CameraThread()
-        # self.autopatchthread = AutoPatchThread(self.camerathread)
+        # Make a button for this
+        self.connect_camera()
         
-        # Connect our GUI display to the signal slots
-        self.camerathread.snapsignal.connect(self.update_canvassnap)
+    def connect_micromanipulator(self):
+        pass
+        
+    def connect_camera(self):
+        self.camerathread = CameraThread()
         self.camerathread.livesignal.connect(self.update_canvaslive)
-
-        # Start thread
+        self.camerathread.snapsignal.connect(self.update_canvassnap)
         self.camerathread.start()
-        # self.autopatchthread.start()
         
     def toggle_live(self):
         # Request to pause or continue emitting frames from the camera thread
-        if self.request_autofocus_button.isChecked():
-            self.camerathread.stop_canvasupdates()
+        if self.request_pause_button.isChecked():
+            self.camerathread.livesignal.disconnect(self.update_canvaslive)
         else:
-            self.camerathread.start_canvasupdates()
+            self.camerathread.livesignal.connect(self.update_canvaslive)
     
     def request_snap(self):
         # Request a snapshot from the camera thread
         self.camerathread.snap()
+        
+    def request_autofocus(self):
+        self.autopatchthread = AutoPatchThread('request autofocus', self.camerathread, None)
+        # self.autopatchthread.started.connect(self.autopatchthread.autofocus)
+        self.autopatchthread.start()
+        
+    def request_detect(self):
+        self.autopatchthread = AutoPatchThread('request detect', self.camerathread, None)
+        # self.autopatchthread.started.connect(self.autopatchthread.detect)
+        self.autopatchthread.start()
         
     def update_canvaslive(self, image):
         # Update the live canvas with every new camera frame
