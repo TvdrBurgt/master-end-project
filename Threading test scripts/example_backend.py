@@ -9,7 +9,7 @@ import numpy as np
 
 from copy import copy
 
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread, QMutex
 
 
 class CameraThread(QThread):
@@ -22,6 +22,7 @@ class CameraThread(QThread):
         self.get_frame = np.zeros((2048,2048))
         
         super().__init__()
+        self.mutex = QMutex()
         self.moveToThread(self)
         self.started.connect(self.acquire)
         
@@ -35,15 +36,17 @@ class CameraThread(QThread):
         self.isrunning = True
         print("data acquisition started")
         while self.isrunning:
-            # Mutex lock here?
+            self.mutex.lock()
             self.get_frame = np.random.rand(2048, 2048)
             QThread.msleep(self.exposure_time)
             self.livesignal.emit(self.get_frame)
+            self.mutex.unlock()
         print("data acquisition stopped")
         
     def snap(self):
-        # Mutex lock here?
+        self.mutex.lock()
         last_view = copy(self.get_frame)
+        self.mutex.unlock()
         print("snap!")
         self.snapsignal.emit(last_view)
         

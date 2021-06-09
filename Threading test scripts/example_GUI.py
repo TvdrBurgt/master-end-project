@@ -123,7 +123,7 @@ class PatchClampUI(QWidget):
 
     def closeEvent(self, event):
         self.camerathread.__del__()
-        self.autopatchthread.__del__()
+        # self.autopatchthread.__del__() #fix this when attribute not exists
         QtWidgets.QApplication.quit()
         event.accept()
 
