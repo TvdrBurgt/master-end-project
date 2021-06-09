@@ -17,7 +17,7 @@ class CameraThread(QThread):
     livesignal = pyqtSignal(np.ndarray)
     
     def __init__(self):
-        self.isrunning = True
+        self.isrunning = False
         self.exposure_time = 20
         self.get_frame = np.zeros((2048,2048))
         
@@ -32,6 +32,7 @@ class CameraThread(QThread):
     
     @pyqtSlot()
     def acquire(self):
+        self.isrunning = True
         print("data acquisition started")
         while self.isrunning:
             # Mutex lock here?
@@ -51,13 +52,15 @@ class CameraThread(QThread):
 
 
 class AutoPatchThread(QThread):
-
-    def __init__(self, method, camera_handle, manipulator_handle=None):
+    finished = pyqtSignal()
+    
+    def __init__(self, method, camera_handle=None, manipulator_handle=None):
         self.camera = camera_handle
         self.micromanipulator = manipulator_handle
-        self.isrunning = True
+        self.isrunning = False
         
         super().__init__()
+        self.finished.connect(self.__del__)
         self.moveToThread(self)
         if method == 'request autofocus':
             self.started.connect(self.autofocus)
@@ -71,20 +74,23 @@ class AutoPatchThread(QThread):
         self.quit()
         self.wait()
         
-        
+    @pyqtSlot()
     def autofocus(self):
+        self.isrunning = True
         print("autofocus started")
         loopcount = -1
         while self.isrunning:
             loopcount += 1
             QThread.msleep(1000)
             print(loopcount)
-            if loopcount == 10:
+            if loopcount == 5:
                 self.isrunning = False
+        self.finished.emit()
         print("autofocus stopped")
-        # self.__del__()
     
+    @pyqtSlot()
     def detect(self):
+        self.isrunning = True
         print("pipette detection started")
         loopcount = -1
         while self.isrunning:
@@ -94,7 +100,7 @@ class AutoPatchThread(QThread):
             if loopcount == 10:
                 self.isrunning = False
         print("pipette detection stopped")
-        # self.__del__()
+        self.finished.emit()
 
 
 if __name__ == "__main__":

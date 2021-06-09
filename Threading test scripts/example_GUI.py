@@ -52,24 +52,19 @@ class PatchClampUI(QWidget):
         
         # Button for starting camera acquisition. This button is a property of
         # the container because we need its checkable state in a function.
-        self.request_pause_button = QPushButton("Pause live")
-        self.request_pause_button.setCheckable(True)
-        self.request_pause_button.clicked.connect(self.toggle_live)
+        self.request_pause_button = QPushButton("Pause live", clicked=self.toggle_live, checkable=True)
         snapshotLayout.addWidget(self.request_pause_button, 1, 0, 1, 1)
 
         # Button for making a snapshot
         request_camera_image_button = QPushButton("Snap image", clicked=self.request_snap)
-        # request_camera_image_button.clicked.connect(self.request_snap)
         snapshotLayout.addWidget(request_camera_image_button, 1, 1, 1, 1)
         
         # Button for autofocus
-        request_autofocus_button = QPushButton("Autofocus")
-        request_autofocus_button.clicked.connect(self.request_autofocus)
+        request_autofocus_button = QPushButton("Autofocus", clicked=self.request_autofocus)
         snapshotLayout.addWidget(request_autofocus_button, 1, 2, 1, 1)
         
         # Button for pipette detection
-        request_detection_button = QPushButton("Detect pipette")
-        request_detection_button.clicked.connect(self.request_detect)
+        request_detection_button = QPushButton("Detect pipette", clicked=self.request_detect)
         snapshotLayout.addWidget(request_detection_button, 1, 3, 1, 1)
 
         snapshotContainer.setLayout(snapshotLayout)
@@ -84,13 +79,16 @@ class PatchClampUI(QWidget):
         # ---------------------------- End of GUI -----------------------------
         # =====================================================================
         
-        # Make a button for this
-        self.connect_camera()
+        # Make a button for these
+        self.toggle_connect_camera()
+        self.toggle_connect_micromanipulator()
         
-    def connect_micromanipulator(self):
+    def toggle_connect_micromanipulator(self):
+        # make this a toggle function, function should initiate and connect or
+        # disconnect and delete.
         pass
         
-    def connect_camera(self):
+    def toggle_connect_camera(self):
         self.camerathread = CameraThread()
         self.camerathread.livesignal.connect(self.update_canvaslive)
         self.camerathread.snapsignal.connect(self.update_canvassnap)
@@ -99,7 +97,7 @@ class PatchClampUI(QWidget):
     def toggle_live(self):
         # Request to pause or continue emitting frames from the camera thread
         if self.request_pause_button.isChecked():
-            self.camerathread.livesignal.disconnect(self.update_canvaslive)
+            self.camerathread.livesignal.disconnect()
         else:
             self.camerathread.livesignal.connect(self.update_canvaslive)
     
@@ -108,13 +106,11 @@ class PatchClampUI(QWidget):
         self.camerathread.snap()
         
     def request_autofocus(self):
-        self.autopatchthread = AutoPatchThread('request autofocus', self.camerathread, None)
-        # self.autopatchthread.started.connect(self.autopatchthread.autofocus)
+        self.autopatchthread = AutoPatchThread('request autofocus', self.camerathread)
         self.autopatchthread.start()
         
     def request_detect(self):
-        self.autopatchthread = AutoPatchThread('request detect', self.camerathread, None)
-        # self.autopatchthread.started.connect(self.autopatchthread.detect)
+        self.autopatchthread = AutoPatchThread('request detect', self.camerathread)
         self.autopatchthread.start()
         
     def update_canvaslive(self, image):
@@ -127,7 +123,7 @@ class PatchClampUI(QWidget):
 
     def closeEvent(self, event):
         self.camerathread.__del__()
-        # self.autopatchthread.__del__()
+        self.autopatchthread.__del__()
         QtWidgets.QApplication.quit()
         event.accept()
 
