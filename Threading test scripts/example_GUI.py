@@ -160,8 +160,8 @@ class PatchClampUI(QWidget):
         if hasattr(self, 'camerathread'):
             self.camerathread.__del__()
             logging.info('Camera thread stopped')
-        if hasattr(self, 'autopatchthread'):
-            self.autopatchthread.__del__()
+        if hasattr(self, 'autopatch'):
+            self.autopatch.__del__()
             logging.info('Autopatch stopped')
         QtWidgets.QApplication.quit()
         event.accept()
@@ -171,7 +171,7 @@ class PatchClampUI(QWidget):
 if __name__ == "__main__":
     def start_logger():
         logging.basicConfig(
-            level=logging.ERROR,
+            level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(message)s",
             handlers=[
                 # logging.FileHandler("autopatch.log"),
