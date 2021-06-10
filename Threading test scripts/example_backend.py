@@ -5,6 +5,7 @@ Created on Thu Apr 15 11:12:26 2021
 @author: tvdrb
 """
 
+import logging
 import numpy as np
 
 from copy import copy
@@ -17,11 +18,11 @@ class CameraThread(QThread):
     livesignal = pyqtSignal(np.ndarray)
 
     def __init__(self):
-        self.isrunning = False
         self.exposure_time = 20
-        self.get_frame = np.zeros((2048, 2048))
+        self.frame = np.random.rand(2048, 2048)
 
         super().__init__()
+        self.isrunning = False
         self.mutex = QMutex()
         self.moveToThread(self)
         self.started.connect(self.acquire)
@@ -34,54 +35,58 @@ class CameraThread(QThread):
     @pyqtSlot()
     def acquire(self):
         self.isrunning = True
-        print("data acquisition started")
+        logging.info("data acquisition started")
         while self.isrunning:
             self.mutex.lock()
-            self.get_frame = np.random.rand(2048, 2048)
+            self.frame = np.random.rand(2048, 2048)
             QThread.msleep(self.exposure_time)
-            self.livesignal.emit(self.get_frame)
+            self.livesignal.emit(self.frame)
             self.mutex.unlock()
-        print("data acquisition stopped")
+        logging.info("data acquisition stopped")
 
     def snap(self):
         # Mutex lock makes code execute in order. Code continues when unlocked,
         # so it acts as a que.
         self.mutex.lock()
-        last_view = copy(self.get_frame)
+        snapshot = copy(self.frame)
         self.mutex.unlock()
-        print("snap!")
-        self.snapsignal.emit(last_view)
+        logging.info("snap!")
+        self.snapsignal.emit(snapshot)
 
-        return last_view
+        return snapshot
 
 
 class AutoPatchThread(QThread):
     finished = pyqtSignal()
 
-    def __init__(self, method, camera_handle=None, manipulator_handle=None):
-        self.camera = camera_handle
-        self.micromanipulator = manipulator_handle
-        self.isrunning = False
+    def __init__(self, camera_handle=None, manipulator_handle=None, objective_handle=None):
+        self.camera_handle = camera_handle
+        self.micromanipulator_handle = manipulator_handle
+        self.objective_handle = objective_handle
 
         super().__init__()
-        self.finished.connect(self.__del__)
+        self.isrunning = False
         self.moveToThread(self)
-        if method == "request autofocus":
-            self.started.connect(self.autofocus)
-        elif method == "request detect":
-            self.started.connect(self.detect)
-        else:
-            pass
+        self.finished.connect(self.__del__)
+        self.started.connect(self.__del__)
 
     def __del__(self):
         self.isrunning = False
         self.quit()
         self.wait()
-
+        
+    def request(self, slot):
+        self.started.disconnect()
+        if slot == "autofocus":
+            self.started.connect(self.autofocus)
+        elif slot == "detect":
+            self.started.connect(self.detect)
+        self.isrunning = True
+        self.start()
+        
     @pyqtSlot()
     def autofocus(self):
-        self.isrunning = True
-        print("autofocus started")
+        logging.info("autofocus started")
         loopcount = -1
         while self.isrunning:
             loopcount += 1
@@ -89,13 +94,12 @@ class AutoPatchThread(QThread):
             print(loopcount)
             if loopcount == 5:
                 self.isrunning = False
+        logging.info("autofocus stopped")
         self.finished.emit()
-        print("autofocus stopped")
 
     @pyqtSlot()
     def detect(self):
-        self.isrunning = True
-        print("pipette detection started")
+        logging.info("pipette detection started")
         loopcount = -1
         while self.isrunning:
             loopcount += 1
@@ -103,9 +107,6 @@ class AutoPatchThread(QThread):
             print(loopcount)
             if loopcount == 10:
                 self.isrunning = False
-        print("pipette detection stopped")
+        logging.info("pipette detection stopped")
         self.finished.emit()
 
-
-if __name__ == "__main__":
-    instance = AutoPatchThread()
