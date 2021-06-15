@@ -147,15 +147,17 @@ plt.plot(zpos_2021_03_18[0:-1], np.diff(variance_2021_03_18), label='Autofocus 2
 import numpy as np
 import matplotlib.pyplot as plt
 
-historydatapath = r'W:\staff-groups\tnw\ist\do\projects\Neurophotonics\Brinkslab\Data\Thijs\Z stack\Autofocus data'
+historydatapath = r'W:\staff-groups\tnw\ist\do\projects\Neurophotonics\Brinkslab\Data\Thijs\run 7 exposure 0.01'
 
-position = np.loadtxt(historydatapath + "\\positionhistory_coarse_run4.txt")
-penalties = np.loadtxt(historydatapath + "\\penaltyhistory_coarse_run4.txt")
+position = np.load(historydatapath + "\\positionhistory.txt.npy")
+penalties = np.load(historydatapath + "\\penaltyhistory.txt.npy")
+# position = np.loadtxt(historydatapath + "\\positionhistory.txt")
+# penalties = np.loadtxt(historydatapath + "\\penaltyhistory.txt")
 
 # plot penalty graph
 plt.figure()
 plt.scatter(position/100, penalties, c=np.linspace(0,1,len(position)), cmap='rainbow')
-plt.title('Sharpness function')
+plt.title('Sharpness function (Exposure time x0.05)')
 plt.xlabel(r'Focus depth (in $\mu$m)')
 plt.ylabel(r'Variance of Laplacian (a.u.)')
 cbar = plt.colorbar(ticks=[0,1])
