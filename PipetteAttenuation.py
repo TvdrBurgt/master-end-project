@@ -15,10 +15,10 @@ from skimage import io
 
 
 # target folder containing the images to be annotated
-path = r'C:\Users\tvdrb\Desktop\Thijs\XY grid\2021-03-23'
+path = r'C:\Users\tvdrb\Desktop\2021-08-16'
 
 # name of .txt in which to save pipette coordinates
-savename = 'XY grid 2021-03-23 attenuated'
+savename = 'XY grid 2021-08-16 attenuated'
 
 # list to save the pipette tip coordinates in
 coordinateclicks = []
@@ -36,7 +36,7 @@ def on_click(event):
 
 # iterate over all .tif files in the target folder
 for count, filename in enumerate(os.listdir(path)):
-    if filename[-4:] == '.tif':
+    if filename[-4:] == '.tif' and filename[-5]=='a':
         print(filename)
         
         # initiate figure where to select pixels from and display images

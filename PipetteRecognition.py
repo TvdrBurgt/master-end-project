@@ -7,25 +7,12 @@ Created on Mon Feb 22 12:17:08 2021
 
 import numpy as np
 from skimage import io, filters, feature, transform
+from scipy import cluster
 import matplotlib.pyplot as plt
-
 
 # =============================================================================
 # Pipette Recognition
 # =============================================================================
-
-# load tiff
-filepath = r"C:\Users\tvdrb\Desktop\Thijs\XY grid\2021-03-23\grid 200 200 0.tif"
-I = io.imread(filepath)
-
-######################### parameter settings #########################
-# physical parameters
-upper_angle = 97.5  # guess upper angle of pipette (in degree)
-lower_angle = 82.5  # guess lower angle of pipette (in degree)
-diameter = 16.5     # pipette tip diameter (in pixels)
-
-######################################################################
-
 
 def plotCoord(I,angle1,dist1,angle2,dist2,xpos,ypos):
     fig, axs = plt.subplots(1,2)
@@ -40,42 +27,63 @@ def plotCoord(I,angle1,dist1,angle2,dist2,xpos,ypos):
     axs[1].scatter(x=xpos, y=ypos, c='r', s=30)
     axs[1].annotate('(%d,%d)' % (xpos,ypos), (xpos+30, ypos-15), c='r')
     fig.show()
-    
-def plotBlurCannyHough(IB,BW,Tcommon1,Rcommon1,Tcommon2,Rcommon2):
+
+def plotBlurCannyHough(IB,BW,Tpeaks,Rpeaks,centroids,labels):
     fig, axs = plt.subplots(1,3)
     # subplot with original image blurred
     axs[0].matshow(IB, cmap='gray', aspect = 'auto'); axs[0].axis('image'); axs[0].axis('off')
-    for angle, dist in zip(Tcommon1,Rcommon1):
+    for angle, dist in zip(Tpeaks,Rpeaks):
         (x, y) = dist*np.array([np.cos(angle), np.sin(angle)])
         axs[0].axline((x ,y), slope=np.tan(angle + np.pi/2), c='r')
-    for angle, dist in zip(Tcommon2,Rcommon2):
-        (x, y) = dist*np.array([np.cos(angle), np.sin(angle)])
-        axs[0].axline((x ,y), slope=np.tan(angle + np.pi/2), c='g')
     # subplot with canny edge detection
     axs[1].matshow(BW, cmap='gray', aspect = 'auto'); axs[1].axis('image'); axs[1].axis('off')
     # subplot with Houghspace
-    left_theta = min(min(Tcommon1),min(Tcommon2))
-    right_theta = max(max(Tcommon1),max(Tcommon2))
-    H, T, R = transform.hough_line(BW,np.linspace(left_theta,right_theta,10000))
+    H, T, R = transform.hough_line(BW,np.linspace(0,3*np.pi,1500))
     axs[2].imshow(np.log(1+H), extent=[np.rad2deg(T[0]), np.rad2deg(T[-1]), R[-1], R[0]], aspect='auto')
     axs[2].set_xlabel(r'$\theta$ (degree)')
     axs[2].set_ylabel(r'$\rho$ (pixels)')
-    for angle, dist in zip(Tcommon1,Rcommon1):
-        axs[2].scatter(x=[np.rad2deg(angle)], y=[dist], c='r', s=20)
-    for angle, dist in zip(Tcommon2,Rcommon2):
-        axs[2].scatter(x=[np.rad2deg(angle)], y=[dist], c='g', s=20)
+    for angle, dist, label in zip(Tpeaks,Rpeaks,labels):
+        if label == 0:
+            color = 'r'
+        else:
+            color = 'g'
+        axs[2].scatter(x=[np.rad2deg(angle)], y=[dist], c=color, s=20, marker='.')
+    for angle, dist, color in zip(centroids[:,0], centroids[:,1], ['r','g']):
+        axs[2].scatter(x=[np.rad2deg(angle)], y=[dist], c=color, s=40, marker='x')
     fig.show()
-    
 
-def detectPipettetip(I, upper_angle, lower_angle, diameter, blursize=15, 
-                     angle_range=10, num_angles=5000, num_peaks=8, plotflag=True):
+
+def makeGaussian(size=(2048,2048), mu=(1024,1024), sigma=(512,512)):
+        """
+        This function returns a normalized Gaussian distribution in 2D with a
+        user specified center position and standarddeviation.
+        """
+        
+        x = np.arange(0, size[0], 1, float)
+        y = np.arange(0, size[1], 1, float)
+        
+        gauss = lambda x,mu,sigma: np.exp((-(x-mu)**2)/(2*sigma**2))
+        
+        xs = gauss(x, mu[0], sigma[0])
+        ys = gauss(y, mu[1], sigma[1])
+        
+        xgrid = np.tile(xs, (size[1],1))
+        ygrid = np.tile(ys, (size[0],1)).transpose()
+        
+        window = np.multiply(xgrid,ygrid)
+        
+        return window/np.sum(window)
+
+
+def detectPipettetip(Ia, Ib, diameter, orientation, plotflag=False):
     """ 
     Tip detection algorithm 
     input parameters:
-        blursize    = kernel size for gaussian blur
-        angle_range = angle search range (in degree)
-        num_angles  = number of sampling angles in Hough transform
-        num_peaks   = number of peaks to find in Hough space
+        Ia          = previous image of pipette tip
+        Ib          = current image of pipette tip
+        diameter    = diameter of pipette tip in pixels
+        orientation = pipette orientation in degree, clockwise calculated from
+                      the horizontal pointing to the right (= 0 degree)
         plotflag    = if True it will generate figures
     output parameters:
         xpos        = x position of the pipette tip
@@ -83,63 +91,73 @@ def detectPipettetip(I, upper_angle, lower_angle, diameter, blursize=15,
     """
     
     # Gaussian blur
-    print('I)\t Gaussian blurring...')
-    IB = filters.gaussian(I, blursize)
+    print('I)')
+    LB = filters.gaussian(Ia, 1)
+    RB = filters.gaussian(Ib, 1)
+    
+    # Image subtraction
+    print('II)')
+    IB = LB - RB
     
     # Canny edge detection
-    print('II)\t Canny edge detection...')
-    BW = feature.canny(IB, sigma=10, low_threshold=0.9, high_threshold=0.7, use_quantiles=True)
+    print('III)')
+    BW = feature.canny(IB, sigma=3, low_threshold=0.99, high_threshold=0, use_quantiles=True)
     
-    # Double-sided Hough transform
-    print('III) Calculating Hough transform...')
-    if np.abs(upper_angle-lower_angle) < angle_range:
-        theta1 = upper_angle + np.linspace(angle_range/2, -np.abs(upper_angle-lower_angle)/2, num_angles)
-        theta2 = lower_angle + np.linspace(np.abs(upper_angle-lower_angle)/2, -angle_range/2, num_angles)
+    # Hough transform
+    print('IV)')
+    angle_range = np.linspace(0, np.pi, 500) + np.deg2rad(orientation)
+    H, T, R = transform.hough_line(BW, angle_range)
+    
+    # Find Hough peaks
+    print('V)')
+    _, Tpeaks, Rpeaks = transform.hough_line_peaks(H,T,R, num_peaks=5, threshold=0)
+    
+    # Cluster peaks
+    print('VI)')
+    idx_lowT = np.argmin(Tpeaks)
+    idx_highT = np.argmax(Tpeaks)
+    initial_clusters = np.array([[Tpeaks[idx_lowT],Rpeaks[idx_lowT]], [Tpeaks[idx_highT],Rpeaks[idx_highT]]])
+    data = np.transpose(np.vstack([Tpeaks,Rpeaks]))
+    centroids, labels = cluster.vq.kmeans2(data, k=initial_clusters, iter=10, minit='matrix')
+    centroid1, centroid2 = centroids
+    
+    
+    # Find intersection between X1*cos(T1)+Y1*sin(T1)=R1 and X2*cos(T2)+Y2*sin(T2)=R2
+    print('VII)')
+    if centroid1[0] > centroid2[0]:
+        angle1,dist1 = centroid1
+        angle2,dist2 = centroid2
     else:
-        theta1 = upper_angle + np.linspace(angle_range/2, -angle_range/2, num_angles)
-        theta2 = lower_angle + np.linspace(angle_range/2, -angle_range/2, num_angles)
-    # append theta's and transform to radians
-    theta = np.deg2rad(np.append(theta1,theta2))
-    # calculate Hough transform
-    H, T, R = transform.hough_line(BW,theta)
-    # split Hough transform in two because of two angles
-    H1, H2 = np.hsplit(H,2)
-    T1, T2 = np.hsplit(T,2)
-    
-    # extract most common lines in the image from the double-sided Hough transform
-    print('IV)\t Finding most common lines from Hough transform...')
-    _, Tcommon1, Rcommon1 = transform.hough_line_peaks(H1,T1,R,num_peaks=num_peaks,threshold=0)
-    _, Tcommon2, Rcommon2 = transform.hough_line_peaks(H2,T2,R,num_peaks=num_peaks,threshold=0)
-    # find the average value so we end up with two lines
-    angle1 = np.mean(Tcommon1)
-    dist1 = np.mean(Rcommon1)
-    angle2 = np.mean(Tcommon2)
-    dist2 = np.mean(Rcommon2)
-    
-    # find intersection between X1*cos(T1)+Y1*sin(T1)=R1 and X2*cos(T2)+Y2*sin(T2)=R2
-    print('V)\t Calculating preliminary pipette point...')
+        angle1,dist1 = centroid2
+        angle2,dist2 = centroid1
     LHS = np.array([[np.cos(angle1), np.sin(angle1)], [np.cos(angle2), np.sin(angle2)]])
     RHS = np.array([dist1, dist2])
     xpos, ypos = np.linalg.solve(LHS, RHS)
     
-    # account for xposition overestimation bias
-    print('VI)\t Correcting for pipette diameter...')
-    deltax = (diameter*np.sin((angle1+angle2)/2))/(2*np.tan((angle1-angle2)/2))
-    deltay = -(diameter*np.cos((angle1+angle2)/2))/(2*np.tan((angle1-angle2)/2))
-    xpos = xpos - deltax
-    ypos = ypos - deltay    
-    print('dx = %.2f' % (deltax))
-    print('dy = %.2f' % (deltay))
+    # Bias correction
+    print('VIII)')
+    H = diameter/(2*np.tan((angle1-angle2)/2))
+    alpha = (angle1+angle2)/2 - np.pi/2
+    xpos = xpos - H*np.cos(alpha)
+    ypos = ypos - H*np.sin(alpha)
     
     # plot figures if plotflag is True
     if plotflag:
-        plotCoord(I,angle1,dist1,angle2,dist2,xpos,ypos)
-        plotBlurCannyHough(IB,BW,Tcommon1,Rcommon1,Tcommon2,Rcommon2)
+        plotCoord(Ib,angle1,dist1,angle2,dist2,xpos,ypos)
+        plotBlurCannyHough(IB,BW,Tpeaks,Rpeaks,centroids,labels)
     
     return xpos, ypos
     
-
-
+    
 if __name__ == '__main__':
-    detectPipettetip(I, upper_angle, lower_angle, diameter, plotflag=True)
+    Ia = io.imread(r"C:\Users\tvdrb\Desktop\2021-08-16\X250Y250a.tif")
+    Ib = io.imread(r"C:\Users\tvdrb\Desktop\2021-08-16\X250Y250b.tif")
+    
+    x1, y1 = detectPipettetip(Ia, Ib, diameter=16, orientation=0)
+    
+    W = makeGaussian(size=Ia.shape, mu=(x1,y1), sigma=(Ia.shape[0]//12,Ia.shape[1]//12))
+    IaW = np.multiply(Ia,W)
+    IbW = np.multiply(Ib,W)
+    
+    x,y = detectPipettetip(IaW, IbW, diameter=20, orientation=0, plotflag=True)
     

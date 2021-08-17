@@ -15,11 +15,11 @@ import matplotlib.cm as cm
 # =============================================================================
 
 # target folder containing the images to be annotated
-path = r'C:\Users\tvdrb\Desktop\Pipette attenuations'
+path = r'C:\Users\tvdrb\Desktop\2021-08-16'
 
 # names of files to compare
-groundtruth = "XY grid 2021-03-23 attenuated"
-estimate = "XY grid 2021-03-23 algorithm"
+groundtruth = "XY grid 2021-08-16 attenuated"
+estimate = "XY grid 2021-08-16 algorithm 2iter"
 
 # bias correction
 xbias = 0
@@ -109,11 +109,11 @@ for i in range(num_segments+1):
 fig, axs = plt.subplots(1,2)
 axs[0].hist(dx[~np.isnan(dx)], bins=500)
 axs[0].set_title('X bias')
-axs[0].set_xlabel(r'Bias (in $\mu$m)')
+axs[0].set_xlabel(r'Bias (in pixels)')
 axs[0].set_ylabel('Count')
 axs[1].hist(dy[~np.isnan(dy)], bins=500)
 axs[1].set_title('Y bias')
-axs[1].set_xlabel(r'Bias (in $\mu$m)')
+axs[1].set_xlabel(r'Bias (in pixels)')
 axs[1].set_ylabel('Count')
 ymax = max(max(axs[0].get_ylim(), axs[1].get_ylim()))
 axs[0].set_ylim(0,ymax)
