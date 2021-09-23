@@ -72,39 +72,51 @@ class PatchClampUI(QWidget):
         =======================================================================
         """
         
+        # algorithm thread
         self.algorithmthread = QThread()
-        self.currentthread = QThread()
-        self.pressurethread = QThread()
-        
         self.datagenerator1 = datagenerator()
-        self.datagenerator2 = datagenerator()
-        self.datagenerator3 = datagenerator()
-        
         self.datagenerator1.moveToThread(self.algorithmthread)
-        self.datagenerator2.moveToThread(self.currentthread)
-        self.datagenerator3.moveToThread(self.pressurethread)
-        
         self.algorithmthread.started.connect(self.datagenerator1.measure)
-        self.currentthread.started.connect(self.datagenerator2.measure)
-        self.pressurethread.started.connect(self.datagenerator3.measure)
-        
         self.datagenerator1.finished.connect(self.algorithmthread.quit)
-        self.datagenerator2.finished.connect(self.currentthread.quit)
-        self.datagenerator3.finished.connect(self.pressurethread.quit)
-        
         self.datagenerator1.finished.connect(self.algorithmthread.wait)
-        self.datagenerator2.finished.connect(self.currentthread.wait)
-        self.datagenerator3.finished.connect(self.pressurethread.wait)
+        self.datagenerator1.measurement.connect(self.update_algorithmwindow)
         
-        self.datagenerator1.data.connect(self.algorithm.setData)
-        self.datagenerator2.data.connect(self.current.setData)
-        self.datagenerator3.data.connect(self.pressure.setData)
+        # current thread
+        self.currentthread = QThread()
+        self.datagenerator2 = datagenerator()
+        self.datagenerator2.moveToThread(self.currentthread)
+        self.currentthread.started.connect(self.datagenerator2.measure)
+        self.datagenerator2.finished.connect(self.currentthread.quit)
+        self.datagenerator2.finished.connect(self.currentthread.wait)
+        self.datagenerator2.measurement.connect(self.update_currentwindow)
+        
+        # pressure thread
+        self.pressurethread = QThread()
+        self.datagenerator3 = datagenerator()
+        self.datagenerator3.moveToThread(self.pressurethread)
+        self.pressurethread.started.connect(self.datagenerator3.measure)
+        self.datagenerator3.finished.connect(self.pressurethread.quit)
+        self.datagenerator3.finished.connect(self.pressurethread.wait)
+        self.datagenerator3.measurement.connect(self.update_pressurewindow)
         
         self.algorithmthread.start()
         self.currentthread.start()
         self.pressurethread.start()
+    
+    
+    def update_algorithmwindow(self, xdata,ydata):
+        n = 100
+        self.algorithm.setData(xdata[-n:],ydata[-n:])
+    
+    def update_currentwindow(self, xdata,ydata):
+        n = 100
+        self.current.setData(xdata[-n:],ydata[-n:])
+    
+    def update_pressurewindow(self, xdata,ydata):
+        n = 100
+        self.pressure.setData(xdata[-n:],ydata[-n:])
         
-        
+    
     def closeEvent(self, event):
         self.datagenerator1.isrunning = False
         self.datagenerator2.isrunning = False
@@ -117,20 +129,20 @@ class PatchClampUI(QWidget):
 
 class datagenerator(QThread):
     finished = pyqtSignal()
-    data = pyqtSignal(np.ndarray,np.ndarray)
+    measurement = pyqtSignal(np.ndarray,np.ndarray)
     
     def __init__(self):
         super().__init__()
         self.isrunning = False
+        self.xdata = np.array([0])
+        self.ydata = np.array([0])
         
     def measure(self):
-        x = np.array([0])
-        y = np.array([0])
         self.isrunning = True
         while self.isrunning == True:
-            x = np.append(x, x[-1]+1)
-            y = np.append(y, np.random.rand(1))
-            self.data.emit(x, y)
+            self.xdata = np.append(self.xdata, self.xdata[-1]+1)
+            self.ydata = np.append(self.ydata, np.random.rand(1))
+            self.measurement.emit(self.xdata, self.ydata)
             QThread.msleep(int(np.random.rand(1)*100+50))
         self.finished.emit()
 

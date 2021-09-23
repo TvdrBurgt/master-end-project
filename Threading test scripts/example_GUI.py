@@ -105,18 +105,21 @@ class PatchClampUI(QWidget):
     def toggle_connect_camera(self):
         if self.connect_camera_button.isChecked():
             # Create instance and pass on to backend
-            self.camerathread = CameraThread()
-            self.autopatch.camera_handle = self.camerathread
+            camerathread = CameraThread()
+            self.autopatch.camerathread = camerathread
+            
+            self.livesignal = camerathread.livesignal
+            self.snapsignal = camerathread.snapsignal
             
             # Connect canvasses to camera signals
-            self.camerathread.livesignal.connect(self.update_canvaslive)
-            self.camerathread.snapsignal.connect(self.update_canvassnap)
+            self.livesignal.connect(self.update_canvaslive)
+            self.snapsignal.connect(self.update_canvassnap)
             
             # Start camera thread
-            self.camerathread.start()
+            self.autopatch.camerathread.start()
         else:
             # Delete camera thread
-            self.camerathread.__del__()
+            self.autopatch.camerathread.__del__()
         
     def toggle_connect_micromanipulator(self):
         # make this a toggle function, function should initiate and connect or
@@ -137,12 +140,12 @@ class PatchClampUI(QWidget):
     def toggle_live(self, state):
         # Request to pause or continue emitting frames from the camera thread
         if self.request_pause_button.isChecked():
-            self.camerathread.livesignal.disconnect()
+            self.livesignal.disconnect()
         else:
-            self.camerathread.livesignal.connect(self.update_canvaslive)
+            self.livesignal.connect(self.update_canvaslive)
 
     def request_snap(self):
-        self.camerathread.snap()
+        self.autopatch.camerathread.snap()
 
     def request_autofocus(self):
         self.autopatch.request("autofocus")
