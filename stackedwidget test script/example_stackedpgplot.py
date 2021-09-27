@@ -56,9 +56,9 @@ class PatchClampUI(QWidget):
         stackedWidget.addWidget(pressureWidget)
         
         pageComboBox = QComboBox()
-        pageComboBox.addItem(str("Page 1"))
-        pageComboBox.addItem(str("Page 2"))
-        pageComboBox.addItem(str("Page 3"))
+        pageComboBox.addItem(str("Algorithm"))
+        pageComboBox.addItem(str("Current"))
+        pageComboBox.addItem(str("Pressure"))
         pageComboBox.activated.connect(stackedWidget.setCurrentIndex)
         
         layout = QGridLayout()
