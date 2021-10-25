@@ -13,23 +13,26 @@ from skimage import io, filters
 # Automatic pipette focus v2
 # =============================================================================
 
-def makeGaussian(size, fwhm = 3, center=None):
-    """ Make a square gaussian kernel.
-    size is the length of a side of the square
-    fwhm is full-width-half-maximum, which
-    can be thought of as an effective radius.
+def makeGaussian(size=(2048,2048), mu=(1024,1024), sigma=(512,512)):
     """
-
-    x = np.arange(0, size, 1, float)
-    y = x[:,np.newaxis]
+    This function returns a normalized Gaussian distribution in 2D with a
+    user specified center position and standarddeviation.
+    """
     
-    if center is None:
-        x0 = y0 = size // 2
-    else:
-        x0 = center[0]
-        y0 = center[1]
+    x = np.arange(0, size[0], 1, float)
+    y = np.arange(0, size[1], 1, float)
     
-    return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
+    gauss = lambda x,mu,sigma: np.exp((-(x-mu)**2)/(2*sigma**2))
+    
+    xs = gauss(x, mu[0], sigma[0])
+    ys = gauss(y, mu[1], sigma[1])
+    
+    xgrid = np.tile(xs, (size[1],1))
+    ygrid = np.tile(ys, (size[0],1)).transpose()
+    
+    window = np.multiply(xgrid,ygrid)
+    
+    return window/np.sum(window)
 
 
 def varianceOfLaplacian(img):
@@ -70,7 +73,7 @@ def outoffocusPenalty(img):
     
     return variance
 
-
+#%% 
 # load tiff
 filepath_2021_03_03 = r"C:\Users\tvdrb\Desktop\Thijs\Z stack\Z stack 2021-03-03.tif"
 filepath_2021_03_18 = r"C:\Users\tvdrb\Desktop\Thijs\Z stack\Z stack 2021-03-18.tif"
