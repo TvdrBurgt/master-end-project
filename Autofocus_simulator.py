@@ -1,146 +1,175 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar 19 14:11:17 2021
+Created on Tue Oct 26 17:16:18 2021
 
 @author: tvdrb
 """
 
+
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import io, filters
 
-# =============================================================================
-# Automatic pipette focus v2
-# =============================================================================
-
-def makeGaussian(size=(2048,2048), mu=(1024,1024), sigma=(512,512)):
-    """
-    This function returns a normalized Gaussian distribution in 2D with a
-    user specified center position and standarddeviation.
-    """
+class autofocus:
+    def __init__(self, start, fz, z):
+        # groundtruth
+        self.fz = fz
+        self.z = z
+        
+        # autofocus
+        self.stepsize = 10
+        self.focusbias = 20
+        self.n = 8
+        self.reference = start
+        self.penaltyhistory = np.array([])
+        self.positionhistory = np.array([])
+        self.lookingforpeak = False
     
-    x = np.arange(0, size[0], 1, float)
-    y = np.arange(0, size[1], 1, float)
+    def getSharpnessgraph(self):
+        return np.vstack([self.positionhistory, self.penaltyhistory])
     
-    gauss = lambda x,mu,sigma: np.exp((-(x-mu)**2)/(2*sigma**2))
+    def start(self):
+        #I) fill first three sharpness scores towards the tail of the graph
+        self.pen = np.zeros(3)
+        self.pos = np.zeros(3)
+        for i in range(0,3):
+            self.pos[i] = self.reference + (i+1)*self.stepsize
+            self.pen[i] = self.fz[np.where(self.z == self.pos[i])]
+        self.penaltyhistory = np.append(self.penaltyhistory, self.pen)
+        self.positionhistory = np.append(self.positionhistory, self.pos)
+        
+        self.going_up = True
+        self.going_down = not self.going_up
+        self.lookingforpeak = True
     
-    xs = gauss(x, mu[0], sigma[0])
-    ys = gauss(y, mu[1], sigma[1])
+    def epoch(self):
+        #II) check which side of the sharpness graph to extend
+        move = None
+        if self.going_up:
+            self.pen = self.penaltyhistory[-3::]
+        else:
+            self.pen = self.penaltyhistory[0:3]
+        
+        #III) check where maximum penalty score is: left, middle, right
+        if np.argmax(self.pen) == 0:
+            maximum = 'left'
+        elif np.argmax(self.pen) == 1:
+            maximum = 'middle'
+        elif np.argmax(self.pen) == 2:
+            maximum = 'right'
+        
+        #IVa) possible actions to undertake while going up
+        if maximum == 'right' and self.going_up:
+            move = 'step up'
+        elif maximum == 'left' and self.going_up:
+            self.going_up = False
+            self.going_down = True
+        elif maximum == 'middle' and self.going_up:
+            if self.pen[1] == np.max(self.penaltyhistory):
+                self.pos = self.positionhistory[-1]
+                self.penaltytail = self.pen[1::]
+                k = 0
+                for i in range(2, self.n):
+                    k = k+1
+                    penalty = self.fz[np.where(self.z == self.pos+self.stepsize*k)]
+                    penaltytail = np.append(self.penaltytail, penalty)
+                monotonicity_condition = np.all(np.diff(penaltytail) <= 0)
+                if monotonicity_condition:
+                    print("Detected maximum is a sharpness peak! (1)")
+                    self.lookingforpeak = False
+                else:
+                    print("Detected maximum is noise")
+                    self.going_up = False
+                    self.going_down = True
+            else:
+                self.going_up = False
+                self.going_down = True
+        
+        #IVb) possible actions to undertake while going down
+        elif maximum == 'left' and self.going_down:
+            move = 'step down'
+        elif maximum == 'right' and self.going_down:
+            if self.pen[2] == np.max(self.penaltyhistory):
+                self.pos = self.positionhistory[2]
+                penaltytail = self.pen[2]
+                k = 0
+                for i in range(2, self.n):
+                    k = k+1
+                    penalty = self.fz[np.where(self.z == self.pos+self.stepsize*k)]
+                    penaltytail = np.append(penaltytail, penalty)
+                monotonicity_condition = np.all(np.diff(penaltytail) <= 0)
+                if monotonicity_condition:
+                    print("Detected maximum is a sharpness peak! (2)")
+                    self.lookingforpeak = False
+                else:
+                    print("Detected maximum is noise")
+                    move = 'step down'
+            else:
+                move = 'step down'
+        elif maximum == 'middle' and self.going_down:
+            penaltytail = self.penaltyhistory[1::]
+            taillength = len(penaltytail)
+            if taillength < self.n:
+                self.pos = self.positionhistory[-1]
+                k = 0
+                for i in range(taillength, self.n):
+                    k = k+1
+                    penalty = self.fz[np.where(self.z == self.pos+self.stepsize*k)]
+                    penaltytail = np.append(penaltytail, penalty)
+            else:
+                penaltytail = penaltytail[0:self.n]
+            monotonicity_condition = np.all(np.diff(penaltytail) <= 0)
+            if monotonicity_condition:
+                print("Detected maximum is a sharpness peak! (3)")
+                self.lookingforpeak = False
+            else:
+                print("Detected maximum is noise")
+                move = 'step down'
     
-    xgrid = np.tile(xs, (size[1],1))
-    ygrid = np.tile(ys, (size[0],1)).transpose()
+        #V) extend the sharpness function on either side
+        if move == 'step up':
+            self.pos = self.positionhistory[-1] + self.stepsize
+            pen = self.fz[np.where(self.z == self.pos)]
+            self.penaltyhistory = np.append(self.penaltyhistory, pen)
+            self.positionhistory = np.append(self.positionhistory, self.pos)
+        elif move == 'step down':
+            self.pos = self.positionhistory[0] - self.stepsize
+            pen = self.fz[np.where(self.z == self.pos)]
+            self.penaltyhistory = np.append(pen, self.penaltyhistory)
+            self.positionhistory = np.append(self.pos, self.positionhistory)
+
+
+if __name__ == "__main__":
+    np.random.seed(34576)
     
-    window = np.multiply(xgrid,ygrid)
+    z = np.linspace(-50,2000,2051)
+    fz = (1/np.sqrt(2*np.pi*300**2))*np.exp(-z**2/2/300**2) + (1/np.sqrt(2*np.pi*100**2))*np.exp(-z**2/2/100**2) + np.sqrt(z+50)/1000**2
+    fz_noise = fz + (np.random.rand(len(z))-0.5)/10*np.mean(fz)
     
-    return window/np.sum(window)
-
-
-def varianceOfLaplacian(img):
-    """
-    This functions calculates a penalty score that is minimum for sharp images.
-    """
-    # average images
-    img_average = filters.gaussian(img, 4)
+    n_agents = 10
+    agents_position_history = np.zeros((n_agents,3))
+    agents_penalty_history = np.zeros((n_agents,3))
+    for i in range(0,n_agents):
+        agent = autofocus(1800+(np.random.randint(50)-25), fz_noise, z)
+        agent.start()
+        while agent.lookingforpeak:
+            agent.epoch()
+        agents_position_history[i,:] = agent.positionhistory[0:3]
+        agents_penalty_history[i,:] = agent.penaltyhistory[0:3]
     
-    # calculate laplacian
-    img_laplace = filters.laplace(img_average, 3)
+    plt.figure()
+    # plt.plot(z, fz, label="groundtruth")
+    plt.scatter(z, fz_noise, label="groundtruth with noise", marker='2', color='grey')
+    positionhistory, penaltyhistory = agent.getSharpnessgraph()
+    plt.plot(positionhistory, penaltyhistory, label="agent", color='yellow')
+    plt.title("Simulation of sharpness function")
+    plt.xlabel(r'Focus depth (in $\mu$m)')
+    plt.ylabel(r'Variance of Laplacian (a.u.)')
     
-    # calculate variance
-    penalty = np.var(img_laplace)
+    plt.figure()
+    for i in range(0,n_agents):
+        plt.plot(agents_position_history[i,:], agents_penalty_history[i,:], label='agent '+str(i))
+    plt.title("3-point end of pipettetip autofocus")
+    plt.xlabel(r'Focus depth (in $\mu$m)')
+    plt.ylabel(r'Variance of Laplacian (a.u.)')
+    plt.legend()
     
-    return penalty
-
-
-def outoffocusPenalty(img):
-    """
-    This function iterates over all images in the Z stack and calculates the
-    out-of-focus penalty per image.
-    """
-    # get Z-stack dimensions
-    depth, height, width = img.shape
-    
-    # constructing Gaussian kernel
-    kernel = makeGaussian(width, fwhm=width/8)
-    
-    print("Calculating penalties...")
-    variance = np.empty(depth)
-    for idx in range(depth):
-        IK = img[idx] * kernel
-        variance[idx] = varianceOfLaplacian(IK)
-        print(variance[idx])
-        if idx == 0:
-            plt.imshow(IK)
-    
-    return variance
-
-#%% 
-# load tiff
-filepath_2021_03_03 = r"C:\Users\tvdrb\Desktop\Thijs\Z stack\Z stack 2021-03-03.tif"
-filepath_2021_03_18 = r"C:\Users\tvdrb\Desktop\Thijs\Z stack\Z stack 2021-03-18.tif"
-filepath_2021_03_23 = r"C:\Users\tvdrb\Desktop\Thijs\Z stack\Z stack 2021-03-23.tif"
-
-# calculate out-of-focus penalty for every Z stack
-variance_2021_03_03 = outoffocusPenalty(io.imread(filepath_2021_03_03))
-variance_2021_03_18 = outoffocusPenalty(io.imread(filepath_2021_03_18))
-variance_2021_03_23 = outoffocusPenalty(io.imread(filepath_2021_03_23))
-
-# manually saved z positions
-# Translate in Z, #24 corresponds to z=0
-zpos_2021_03_03 = np.concatenate([np.arange(-350, -250, 50),
-                                  np.arange(-250, -100, 25),
-                                  np.arange(-100, -50, 10),
-                                  np.arange(-50, -10.001, 5),
-                                  np.arange(0, 5.001, 1),
-                                  np.arange(5, 100, 10),
-                                  np.arange(100, 500, 50),
-                                  np.arange(500, 1000, 100),
-                                  np.arange(1000, 2000, 250),
-                                  np.arange(2000, 3000.001, 500)])
-# Z stack 2021-03-18, #85 corresponds to z=0
-zpos_2021_03_18 = np.concatenate([np.arange(-300, -250, 50),
-                                  np.arange(-250, -100, 25),
-                                  np.arange(-100, -50, 10),
-                                  np.arange(-50, -3, 1),
-                                  np.arange(-3, -2.5, 0.5),
-                                  np.arange(-2.5, 5, 0.1),
-                                  np.arange(5, 50, 1),
-                                  np.arange(50, 100, 10),
-                                  np.arange(100, 250, 25),
-                                  np.arange(250, 500, 50),
-                                  np.arange(500, 2000.001, 100)])
-# Z stack 2021-03-23, #13 corresponds to z=0
-zpos_2021_03_23 = np.concatenate([np.arange(-30, -10, 10),
-                                  np.arange(-10, 0.001, 1),
-                                  np.arange(0, 10, 1),
-                                  np.arange(10, 100, 10),
-                                  np.arange(100, 200.001, 100)])
-
-# Remove badly saved image
-zpos_2021_03_18=np.delete(zpos_2021_03_18,181)
-variance_2021_03_18=np.delete(variance_2021_03_18,181)
-
-
-# plot figures
-plt.figure()
-plt.plot(zpos_2021_03_03, variance_2021_03_03, label='Autofocus 2021/03/03')
-plt.plot(zpos_2021_03_18, variance_2021_03_18, label='Autofocus 2021/03/18')
-plt.plot(zpos_2021_03_23, variance_2021_03_23, label='Autofocus 2021/03/23')
-plt.title('Autofocus scores')
-plt.xlabel(r'Focus depth (in $\mu$m)')
-plt.ylabel(r'Variance of Laplacian (a.u.)')
-plt.legend()
-plt.show()
-
-plt.figure()
-plt.plot(zpos_2021_03_03, variance_2021_03_03/max(variance_2021_03_03), label='Autofocus 2021/03/03 (normalized)')
-plt.plot(zpos_2021_03_18, variance_2021_03_18/max(variance_2021_03_18), label='Autofocus 2021/03/18 (normalized)')
-plt.plot(zpos_2021_03_23, variance_2021_03_23/max(variance_2021_03_23), label='Autofocus 2021/03/23 (normalized)')
-plt.title('Autofocus scores (normalized)')
-plt.xlabel(r'Focus depth (in $\mu$m)')
-plt.ylabel(r'Variance of Laplacian (a.u.)')
-plt.legend()
-plt.show()
-
-plt.figure()
-plt.plot(zpos_2021_03_18[0:-1], np.diff(variance_2021_03_18), label='Autofocus 2021/03/18 (normalized)')
-
