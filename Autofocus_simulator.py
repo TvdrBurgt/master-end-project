@@ -18,7 +18,7 @@ class autofocus:
         # autofocus
         self.stepsize = 10
         self.focusbias = 20
-        self.n = 8
+        self.n = 12
         self.reference = start
         self.penaltyhistory = np.array([])
         self.positionhistory = np.array([])
@@ -164,6 +164,7 @@ if __name__ == "__main__":
     plt.title("Simulation of sharpness function")
     plt.xlabel(r'Focus depth (in $\mu$m)')
     plt.ylabel(r'Variance of Laplacian (a.u.)')
+    plt.legend()
     
     plt.figure()
     for i in range(0,n_agents):

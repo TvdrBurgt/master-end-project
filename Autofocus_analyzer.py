@@ -8,11 +8,14 @@ Created on Mon Oct 25 09:34:23 2021
 import numpy as np
 import matplotlib.pyplot as plt
 
-path = r'C:\Users\tvdrb\Desktop\Test runs\feedback 1'
+path = r'C:\Users\tvdrb\Desktop\Data autofocus'
 
-penalties = np.load(path + "\\autofocus_penaltyhistory.npy")
-positions = np.load(path + "\\autofocus_positionhistory.npy")
-positions -= 722
+autofocustimestamp = r'autofocus_2021-10-27_16-51-49'
+
+penalties = np.load(path + "\\" + autofocustimestamp[0:9] + "_penaltyhistory_" + autofocustimestamp[10::] + ".npy")
+positions = np.load(path + "\\" + autofocustimestamp[0:9] + "_positionhistory_" + autofocustimestamp[10::] + ".npy")
+snapshot = plt.imread(path + "\\" + autofocustimestamp + ".tif")
+positions -= 445.3
 
 
 # first derivative (central difference)
@@ -48,15 +51,17 @@ plt.scatter(positions, penalties, c=np.linspace(0,1,len(positions)), cmap='rainb
 plt.xlabel(r'Focus depth (in $\mu$m)')
 plt.ylabel(r'Variance of Laplacian (a.u.)')
 
-df_negative = np.where(df<0)
-ddf_negative = np.where(ddf<0)
+plt.matshow(snapshot, cmap='gray')
 
-fig, (ax1,ax2) = plt.subplots(2, sharex=True)
-ax2.plot(positions[argpos], df, label="f'(x)", color='orange')
-ax2.plot(positions[argpos], ddf, label="f''(x)", color='green')
-ax2.scatter(positions[argpos][df_negative], df[df_negative], color='orange', marker='o')
-ax2.scatter(positions[argpos][ddf_negative], ddf[ddf_negative], color='green', marker='x')
-fig.suptitle("Focus penalties and derivatives")
-ax1.plot(positions, penalties, label="f(x)")
-ax2.set(xlabel=r'Focus depth (in $\mu$m)', ylabel=r'Variance of Laplacian (a.u.)')
-ax2.legend()
+# df_negative = np.where(df<0)
+# ddf_negative = np.where(ddf<0)
+
+# fig, (ax1,ax2) = plt.subplots(2, sharex=True)
+# ax2.plot(positions[argpos], df, label="f'(x)", color='orange')
+# ax2.plot(positions[argpos], ddf, label="f''(x)", color='green')
+# ax2.scatter(positions[argpos][df_negative], df[df_negative], color='orange', marker='o')
+# ax2.scatter(positions[argpos][ddf_negative], ddf[ddf_negative], color='green', marker='x')
+# fig.suptitle("Focus penalties and derivatives")
+# ax1.plot(positions, penalties, label="f(x)")
+# ax2.set(xlabel=r'Focus depth (in $\mu$m)', ylabel=r'Variance of Laplacian (a.u.)')
+# ax2.legend()
