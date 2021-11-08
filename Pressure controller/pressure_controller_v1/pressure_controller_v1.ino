@@ -18,7 +18,7 @@
 #include "pwm_lib.h"
 using namespace arduino_due::pwm_lib;
 
-#define MARGIN 3  // pressure can vary [-margin, margin]
+#define MARGIN 5  // pressure can vary [-margin, margin]
 #define LED1 14
 #define LED2 15
 #define VALVE1 30
@@ -31,6 +31,8 @@ using namespace arduino_due::pwm_lib;
 #define PUMP_VACUUM_PWM     0     // 1e-8 seconds
 
 String command;
+String command1;
+String command2;
 bool flag;
 int target_pressure;
 int pumps_PWM;
@@ -113,9 +115,19 @@ void loop() {
   // Process serial requests:
   if (Serial.available()) {
     command = Serial.readStringUntil('\n');
-    target_pressure = command.toFloat();
-    Serial.println(target_pressure);
-    flag = true;
+    command1 = getValue(command, ' ', 0);
+    command2 = getValue(command, ' ', 1);
+    Serial.println(command1); Serial.println(command2);
+    if (command1 == "P") {
+      target_pressure = command2.toFloat();
+      flag = true;
+    } else if (command1 == "PWM") {
+      pumps_PWM = command2.toInt();
+      change_duty(pwm_pin36, pumps_PWM, PUMP_PERIOD);
+      digitalWrite(VALVE1, LOW);
+      digitalWrite(VALVE2, LOW);
+      flag = false;
+    }
   }
 
   //// To do only once
@@ -133,8 +145,8 @@ void loop() {
     // target_pressure: <ATM
     else if (target_pressure < -MARGIN){
       Serial.println("Vacuum pump on");
-      digitalWrite(VALVE1, LOW);
-      digitalWrite(VALVE2, LOW);
+      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+      digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
       delay(10);
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
     }
@@ -152,7 +164,9 @@ void loop() {
   
   //// To do continuous
   // Increase dutycycle of pumps with increasing target pressure
-  if (abs(target_pressure) <= 100) {
+  if (abs(target_pressure) <= 50) {
+    pumps_PWM = 300;
+  } else if (abs(target_pressure) <= 100) {
     pumps_PWM = 600;
   } else if (abs(target_pressure) <= 200) {
     pumps_PWM = 1000;
