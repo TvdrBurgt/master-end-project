@@ -117,15 +117,8 @@ void loop() {
   delay(50);
   
   // read out pressure sensors, average, and convert to pressure
-  PS1_output = 0;
-  PS2_output = 0;
-  for (int i=0; i<10; i++){
-    PS1_output = PS1_output + analogRead(PressureSensor1);
-    PS2_output = PS2_output + analogRead(PressureSensor2);
-  }
-  P1 = voltage2pressure(PS1_output/10) - PS1_offset;
-  P2 = voltage2pressure(PS2_output/10) - PS2_offset;
-
+  read_pressure_sensors();
+  
   // Update LCD at a rate of LCD_FPS
   current = millis();
   if (current - previous >= refresh_time) {
@@ -135,20 +128,7 @@ void loop() {
 
   // Process serial requests:
   if (Serial.available()) {
-    command = Serial.readStringUntil('\n');
-    command1 = getValue(command, ' ', 0);
-    command2 = getValue(command, ' ', 1);
-    Serial.print(command1+" "); Serial.println(command2);
-    if (command1 == "P") {
-      target_pressure = command2.toFloat();
-      flag = true;
-    } else if (command1 == "PWM") {
-      pumps_PWM = command2.toInt();
-      change_duty(pwm_pin36, pumps_PWM, PUMP_PERIOD);
-      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
-      digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
-      flag = false;
-    }
+    process_serial_request();
   }
 
   //// To do only once
@@ -215,4 +195,32 @@ void loop() {
   
 }
 
+
+void read_pressure_sensors() {
+  PS1_output = 0;
+  PS2_output = 0;
+  for (int i=0; i<10; i++){
+    PS1_output = PS1_output + analogRead(PressureSensor1);
+    PS2_output = PS2_output + analogRead(PressureSensor2);
+  }
+  P1 = voltage2pressure(PS1_output/10) - PS1_offset;
+  P2 = voltage2pressure(PS2_output/10) - PS2_offset;
+}
+
+void process_serial_request() {
+  command = Serial.readStringUntil('\n');
+    command1 = getValue(command, ' ', 0);
+    command2 = getValue(command, ' ', 1);
+    Serial.print(command1+" "); Serial.println(command2);
+    if (command1 == "P") {
+      target_pressure = command2.toFloat();
+      flag = true;
+    } else if (command1 == "PWM") {
+      pumps_PWM = command2.toInt();
+      change_duty(pwm_pin36, pumps_PWM, PUMP_PERIOD);
+      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+      digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
+      flag = false;
+    }
+}
  
