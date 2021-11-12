@@ -15,6 +15,8 @@
  * 
  * 
  */
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
 #include "pwm_lib.h"
 using namespace arduino_due::pwm_lib;
 
@@ -29,6 +31,8 @@ using namespace arduino_due::pwm_lib;
 #define PUMP_PERIOD         2000  // 1e-8 seconds
 #define PUMP_PRESSURE_PWM   0     // 1e-8 seconds
 #define PUMP_VACUUM_PWM     0     // 1e-8 seconds
+// define lcd refresh rate
+#define LCD_FPS 5   // Hz
 
 String command;
 String command1;
@@ -42,6 +46,11 @@ float PS1_offset;
 float PS2_offset;
 float P1;
 float P2;
+unsigned long previous, current;
+const long refresh_time = 1000/LCD_FPS;
+
+// Set the LCD address to 0x27 for a 16 chars and 2 line display
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // pin PC2 mapped to pin 34 on the DUE, this object uses PWM channel L0
 pwm<pwm_pin::PWML0_PC2> pwm_pin34;
@@ -67,6 +76,11 @@ void setup() {
   digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
   digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
   
+  // initialize the LCD
+  lcd.begin();
+  lcd.backlight();
+  lcd.setCursor(0, 0); lcd.print("Setting up...");
+  
   // Starting PWM signals
   pwm_pin34.start(PUMP_PERIOD, PUMP_PRESSURE_PWM);
   pwm_pin36.start(PUMP_PERIOD, PUMP_VACUUM_PWM);
@@ -91,8 +105,11 @@ void setup() {
   
   target_pressure = 0;
   flag = true;
-  
-  Serial.println("Setup complete");
+
+  // Start timer to update the LCD at 5Hz.
+  previous = millis();
+  lcd.setCursor(0,1); lcd.print("Setup complete");
+  lcd.clear();
 }
 
 
@@ -108,24 +125,28 @@ void loop() {
   }
   P1 = voltage2pressure(PS1_output/10) - PS1_offset;
   P2 = voltage2pressure(PS2_output/10) - PS2_offset;
-  Serial.print("Readout Pressure Sensor 2: ");
-  Serial.print(P2);
-  Serial.println(" mBar");
+
+  // Update LCD at a rate of LCD_FPS
+  current = millis();
+  if (current - previous >= refresh_time) {
+    previous = current;
+    lcd.setCursor(0,0); lcd.print((String)P2+" mBar   ");
+  }
 
   // Process serial requests:
   if (Serial.available()) {
     command = Serial.readStringUntil('\n');
     command1 = getValue(command, ' ', 0);
     command2 = getValue(command, ' ', 1);
-    Serial.println(command1); Serial.println(command2);
+    Serial.print(command1+" "); Serial.println(command2);
     if (command1 == "P") {
       target_pressure = command2.toFloat();
       flag = true;
     } else if (command1 == "PWM") {
       pumps_PWM = command2.toInt();
       change_duty(pwm_pin36, pumps_PWM, PUMP_PERIOD);
-      digitalWrite(VALVE1, LOW);
-      digitalWrite(VALVE2, LOW);
+      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+      digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
       flag = false;
     }
   }
@@ -145,8 +166,8 @@ void loop() {
     // target_pressure: <ATM
     else if (target_pressure < -MARGIN){
       Serial.println("Vacuum pump on");
-      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
-      digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
+      digitalWrite(VALVE1, LOW);
+      digitalWrite(VALVE2, LOW);
       delay(10);
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
     }
