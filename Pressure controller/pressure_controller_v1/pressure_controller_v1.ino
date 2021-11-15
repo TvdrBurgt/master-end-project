@@ -39,6 +39,7 @@ String command1;
 String command2;
 bool flag;
 int target_pressure;
+int previous_target_pressure;
 int pumps_PWM;
 int PS1_output;
 int PS2_output;
@@ -46,6 +47,7 @@ float PS1_offset;
 float PS2_offset;
 float P1;
 float P2;
+float dP;
 unsigned long previous, current;
 const long refresh_time = 1000/LCD_FPS;
 
@@ -114,7 +116,7 @@ void setup() {
 
 
 void loop() {
-  delay(50);
+  delay(30);
   
   // read out pressure sensors, average, and convert to pressure
   read_pressure_sensors();
@@ -123,7 +125,7 @@ void loop() {
   current = millis();
   if (current - previous >= refresh_time) {
     previous = current;
-    lcd.setCursor(0,0); lcd.print((String)P2+" mBar   ");
+    lcd.setCursor(0,0); lcd.print((String)P1+" mBar   ");
   }
 
   // Process serial requests:
@@ -137,45 +139,72 @@ void loop() {
     // target_pressure: ATM
     if (target_pressure == 0){
       Serial.println("ATM, pumps off");
-      digitalWrite(VALVE1, LOW);
-      digitalWrite(VALVE2, HIGH);
+      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+      digitalWrite(VALVE2, HIGH); digitalWrite(LED2, LOW);
       delay(10);
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
       change_duty(pwm_pin36, 0, PUMP_PERIOD);
     }
     // target_pressure: <ATM
-    else if (target_pressure < 0){
-      Serial.println("Vacuum pump on");
-      digitalWrite(VALVE1, LOW);
-      digitalWrite(VALVE2, LOW);
+    else if (target_pressure < 0) {
+      if (target_pressure - P2 > MARGIN) {
+        // bring pressure up to target_pressure
+        digitalWrite(VALVE1, HIGH); digitalWrite(LED1, LOW);
+        delay(10);
+        if (target_pressure - P2 > MARGIN) {
+          Serial.print("Compensation upward: ");
+          Serial.println(P2);
+        }
+        while (target_pressure - P2 > MARGIN) {
+          read_pressure_sensors();
+          change_duty(pwm_pin34, 300, PUMP_PERIOD);
+          delay(10);
+        }
+      }
+      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+      digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
       delay(10);
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
     }
     // target_pressure: >ATM
     else if (target_pressure > 0){
-      Serial.println("Pressure pump on");
-      digitalWrite(VALVE1, HIGH);
-      digitalWrite(VALVE2, LOW);
+      if (target_pressure - P2 < -MARGIN) {
+        // bring pressure down to target_pressure
+        digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+        delay(10);
+        if (target_pressure - P2 < -MARGIN) {
+          Serial.print("Compensation downward: ");
+          Serial.println(P2);
+        }
+        while (target_pressure - P2 < -MARGIN) {
+          read_pressure_sensors();
+          change_duty(pwm_pin36, 300, PUMP_PERIOD);
+          delay(10);
+        }
+      }
+      digitalWrite(VALVE1, HIGH); digitalWrite(LED1, LOW);
+      digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
       delay(10);
       change_duty(pwm_pin36, 0, PUMP_PERIOD);
     }
-    digitalWrite(LED1, !digitalRead(VALVE1));
-    digitalWrite(LED2, !digitalRead(VALVE2));
+    
+    // Increase dutycycle of pumps with increasing target pressure
+    if (abs(target_pressure) <= 50) {
+      pumps_PWM = 300;
+    } else if (abs(target_pressure) <= 100) {
+      pumps_PWM = 600;
+    } else if (abs(target_pressure) <= 200) {
+      pumps_PWM = 1000;
+    } else if (abs(target_pressure) <= 300) {
+      pumps_PWM = 1400;
+    } else if (abs(target_pressure) > 300) {
+      pumps_PWM = 1800;
+    }
+//    digitalWrite(LED1, !digitalRead(VALVE1));
+//    digitalWrite(LED2, !digitalRead(VALVE2));
   }
   
   //// To do continuous
-  // Increase dutycycle of pumps with increasing target pressure
-  if (abs(target_pressure) <= 50) {
-    pumps_PWM = 300;
-  } else if (abs(target_pressure) <= 100) {
-    pumps_PWM = 600;
-  } else if (abs(target_pressure) <= 200) {
-    pumps_PWM = 1000;
-  } else if (abs(target_pressure) <= 300) {
-    pumps_PWM = 1400;
-  } else if (abs(target_pressure) > 300) {
-    pumps_PWM = 1800;
-  }
   // Set vacuum pump dutycycle
   if (target_pressure < -MARGIN) {
     if (P2-MARGIN > target_pressure) {
@@ -213,6 +242,7 @@ void process_serial_request() {
     command2 = getValue(command, ' ', 1);
     Serial.print(command1+" "); Serial.println(command2);
     if (command1 == "P") {
+      previous_target_pressure = target_pressure;
       target_pressure = command2.toFloat();
       flag = true;
     } else if (command1 == "PWM") {
