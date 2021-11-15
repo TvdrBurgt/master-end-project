@@ -118,8 +118,11 @@ void setup() {
 void loop() {
   delay(30);
   
-  // read out pressure sensors, average, and convert to pressure
+  // Read out pressure sensors, average, and convert to pressure
   read_pressure_sensors();
+
+  // Send out pressur readout over serial port
+  Serial.println((String)"PS "+P1+" "+P2);
   
   // Update LCD at a rate of LCD_FPS
   current = millis();
