@@ -46,6 +46,7 @@ float PS1_offset;
 float PS2_offset;
 float P1;
 float P2;
+float dP;
 unsigned long previous, current;
 const long refresh_time = 1000/LCD_FPS;
 
@@ -135,7 +136,7 @@ void loop() {
   if (flag) {
     flag = false;
     // target_pressure: ATM
-    if (target_pressure < MARGIN and target_pressure > -MARGIN){
+    if (target_pressure == 0){
       Serial.println("ATM, pumps off");
       digitalWrite(VALVE1, LOW);
       digitalWrite(VALVE2, HIGH);
@@ -144,7 +145,7 @@ void loop() {
       change_duty(pwm_pin36, 0, PUMP_PERIOD);
     }
     // target_pressure: <ATM
-    else if (target_pressure < -MARGIN){
+    else if (target_pressure < 0){
       Serial.println("Vacuum pump on");
       digitalWrite(VALVE1, LOW);
       digitalWrite(VALVE2, LOW);
@@ -152,7 +153,7 @@ void loop() {
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
     }
     // target_pressure: >ATM
-    else if (target_pressure > MARGIN){
+    else if (target_pressure > 0){
       Serial.println("Pressure pump on");
       digitalWrite(VALVE1, HIGH);
       digitalWrite(VALVE2, LOW);
