@@ -46,7 +46,6 @@ float PS1_offset;
 float PS2_offset;
 float P1;
 float P2;
-float dP;
 unsigned long previous, current;
 const long refresh_time = 1000/LCD_FPS;
 
