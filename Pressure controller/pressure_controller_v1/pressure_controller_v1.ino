@@ -1,6 +1,7 @@
 /**
  * Pressure control software for the pressure regulator system.
  * 
+ * 
  * Make sure that Tools > Board: "..." > Arduino ARM (32-bits) Boards > Arduino Due
  * (Programming Port) is selected before uploading new sketches. According to the
  * spec sheets, the valves have a response time of 6ms or less. We choose a response 
@@ -11,8 +12,14 @@
  * https://github.com/antodom/pwm_lib
  * https://github.com/antodom/tc_lib
  * 
- * The Brinks Lab, by Thijs van der Burgt
+ * Important parameters are:
+ * MARGIN:    defines the margin of pressure fluctuation allowed as the range: 
+ *            [-MARGIN, MARGIN] in mBar. Note that the pressure sensor output
+ *            fluctuates ~5mBar at ATM from noise.
+ * LCD_freq:  defines the frequency for updating the LCD display in Hz.
  * 
+ * 
+ * The Brinks Lab, by Thijs van der Burgt
  * 
  */
 #include <Wire.h> 
@@ -20,7 +27,8 @@
 #include "pwm_lib.h"
 using namespace arduino_due::pwm_lib;
 
-#define MARGIN 5  // pressure can vary [-margin, margin]
+#define MARGIN 5    // pressure can vary [-margin, margin]
+#define LCD_freq 5  // Hz
 #define LED1 14
 #define LED2 15
 #define VALVE1 30
@@ -31,15 +39,12 @@ using namespace arduino_due::pwm_lib;
 #define PUMP_PERIOD         2000  // 1e-8 seconds
 #define PUMP_PRESSURE_PWM   0     // 1e-8 seconds
 #define PUMP_VACUUM_PWM     0     // 1e-8 seconds
-// define lcd refresh rate
-#define LCD_FPS 5   // Hz
 
 String command;
 String command1;
 String command2;
 bool flag;
 int target_pressure;
-int previous_target_pressure;
 int pumps_PWM;
 int PS1_output;
 int PS2_output;
@@ -48,8 +53,8 @@ float PS2_offset;
 float P1;
 float P2;
 float dP;
-unsigned long previous, current;
-const long refresh_time = 1000/LCD_FPS;
+unsigned long previous_LCD, current;
+const long refresh_time = 1000/LCD_freq;
 
 // Set the LCD address to 0x27 for a 16 chars and 2 line display
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -104,30 +109,27 @@ void setup() {
   PS2_offset = voltage2pressure(PS2_output/1000);
   Serial.print("PS1 offset: "); Serial.print(PS1_offset); Serial.println(" mBar");
   Serial.print("PS2 offset: "); Serial.print(PS2_offset); Serial.println(" mBar");
+
+  // Udate LCD and start timer for refresh rate
+  previous_LCD = millis();
+  lcd.setCursor(0,1); lcd.print("Setup complete");
+  lcd.clear();
   
   target_pressure = 0;
   flag = true;
-
-  // Start timer to update the LCD at 5Hz.
-  previous = millis();
-  lcd.setCursor(0,1); lcd.print("Setup complete");
-  lcd.clear();
+  
 }
 
 
 void loop() {
-  delay(30);
   
   // Read out pressure sensors, average, and convert to pressure
   read_pressure_sensors();
-
-  // Send out pressur readout over serial port
-  Serial.println((String)"PS "+P1+" "+P2);
   
-  // Update LCD at a rate of LCD_FPS
+  // Update LCD at a rate of LCD_freq
   current = millis();
-  if (current - previous >= refresh_time) {
-    previous = current;
+  if (current - previous_LCD >= refresh_time) {
+    previous_LCD = current;
     lcd.setCursor(0,0); lcd.print((String)P1+" mBar   ");
   }
 
@@ -139,10 +141,10 @@ void loop() {
   //// To do only once
   if (flag) {
     flag = false;
+    
     // target_pressure: ATM
     if (target_pressure == 0){
       Serial.println("ATM, pumps off");
-      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
       digitalWrite(VALVE2, HIGH); digitalWrite(LED2, LOW);
       delay(10);
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
@@ -154,10 +156,8 @@ void loop() {
         // bring pressure up to target_pressure
         digitalWrite(VALVE1, HIGH); digitalWrite(LED1, LOW);
         delay(10);
-        if (target_pressure - P2 > MARGIN) {
-          Serial.print("Compensation upward: ");
-          Serial.println(P2);
-        }
+        Serial.print("Compensation upward: ");
+        Serial.println(P2);
         while (target_pressure - P2 > MARGIN) {
           read_pressure_sensors();
           change_duty(pwm_pin34, 300, PUMP_PERIOD);
@@ -175,10 +175,8 @@ void loop() {
         // bring pressure down to target_pressure
         digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
         delay(10);
-        if (target_pressure - P2 < -MARGIN) {
-          Serial.print("Compensation downward: ");
-          Serial.println(P2);
-        }
+        Serial.print("Compensation downward: ");
+        Serial.println(P2);
         while (target_pressure - P2 < -MARGIN) {
           read_pressure_sensors();
           change_duty(pwm_pin36, 300, PUMP_PERIOD);
@@ -191,7 +189,8 @@ void loop() {
       change_duty(pwm_pin36, 0, PUMP_PERIOD);
     }
     
-    // Increase dutycycle of pumps with increasing target pressure
+    // Increase dutycycle of pumps with increasing target pressure,
+    // substitute this functinoality with PID in the future!
     if (abs(target_pressure) <= 50) {
       pumps_PWM = 300;
     } else if (abs(target_pressure) <= 100) {
@@ -203,10 +202,9 @@ void loop() {
     } else if (abs(target_pressure) > 300) {
       pumps_PWM = 1800;
     }
-//    digitalWrite(LED1, !digitalRead(VALVE1));
-//    digitalWrite(LED2, !digitalRead(VALVE2));
+    
   }
-  
+
   //// To do continuous
   // Set vacuum pump dutycycle
   if (target_pressure < -MARGIN) {
@@ -237,23 +235,22 @@ void read_pressure_sensors() {
   }
   P1 = voltage2pressure(PS1_output/10) - PS1_offset;
   P2 = voltage2pressure(PS2_output/10) - PS2_offset;
+  
+  // Send out pressur readout over serial port every X ms
+  Serial.println((String)"PS "+P1+" "+P2);
 }
 
 void process_serial_request() {
-  command = Serial.readStringUntil('\n');
+  // flush input buffer so that we only read the last input
+  while (Serial.available()) {
+    command = Serial.readStringUntil('\n');
+  }
     command1 = getValue(command, ' ', 0);
     command2 = getValue(command, ' ', 1);
     Serial.print(command1+" "); Serial.println(command2);
     if (command1 == "P") {
-      previous_target_pressure = target_pressure;
       target_pressure = command2.toFloat();
       flag = true;
-    } else if (command1 == "PWM") {
-      pumps_PWM = command2.toInt();
-      change_duty(pwm_pin36, pumps_PWM, PUMP_PERIOD);
-      digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
-      digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
-      flag = false;
     }
 }
  
