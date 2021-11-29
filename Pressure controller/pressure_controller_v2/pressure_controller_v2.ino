@@ -161,7 +161,7 @@ void loop() {
         while (target_pressure - P2 > MARGIN) {
           read_pressure_sensors();
           change_duty(pwm_pin34, 400, PUMP_PERIOD);
-          delay(10);
+          delay(5);
         }
       }
       digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
@@ -180,7 +180,7 @@ void loop() {
         while (target_pressure - P2 < -MARGIN) {
           read_pressure_sensors();
           change_duty(pwm_pin36, 400, PUMP_PERIOD);
-          delay(10);
+          delay(5);
         }
       }
       digitalWrite(VALVE1, HIGH); digitalWrite(LED1, LOW);
@@ -191,14 +191,14 @@ void loop() {
     
     // Increase dutycycle of pumps with increasing target pressure,
     // substitute this functinoality with PID in the future!
-    if (abs(target_pressure) <= 100) {
+    if (abs(target_pressure) <= 50) {
+      pumps_PWM = 500;
+    } else if (abs(target_pressure) <= 100) {
       pumps_PWM = 1000;
-    } else if (abs(target_pressure) <= 200) {
+    } else if (abs(target_pressure) <= 150) {
       pumps_PWM = 1500;
-    } else if (abs(target_pressure) <= 200) {
-      pumps_PWM = 1000;
-    } else if (abs(target_pressure) <= 300) {
-      pumps_PWM = 2000;
+    } else if (abs(target_pressure) > 150) {
+      pumps_PWM = 1800;
     }
     
   }
