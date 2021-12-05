@@ -127,11 +127,7 @@ void loop() {
   read_pressure_sensors();
   
   // Update LCD at a rate of LCD_freq
-  current = millis();
-  if (current - previous_LCD >= refresh_time) {
-    previous_LCD = current;
-    lcd.setCursor(0,0); lcd.print((String)P1+" mBar   ");
-  }
+  update_lcd();
 
   // Process serial requests:
   if (Serial.available()) {
@@ -202,7 +198,7 @@ void loop() {
     }
     
   }
-
+  
   //// To do continuous
   // Set vacuum pump dutycycle
   if (target_pressure < -MARGIN) {
@@ -222,7 +218,6 @@ void loop() {
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
     }
   }
-
   
 }
 
@@ -241,6 +236,16 @@ void read_pressure_sensors() {
   Serial.println((String)"PS "+P1+" "+P2);
 }
 
+
+void update_lcd() {
+  current = millis();
+  if (current - previous_LCD >= refresh_time) {
+    previous_LCD = current;
+    lcd.setCursor(0,0); lcd.print((String)P1+" mBar   ");
+  }
+}
+
+
 void process_serial_request() {
   // flush input buffer so that we only read the last input
   while (Serial.available()) {
@@ -252,6 +257,36 @@ void process_serial_request() {
     if (command1 == "P") {
       target_pressure = command2.toFloat();
       flag = true;
+    } else if(command1 = "S") {
+      apply_pressure_pulse(command2.toFloat());
+      target_pressure = 0;
+      flag = true;
     }
+}
+
+
+void apply_pressure_pulse(float pulse) {
+  // close the valve after the pressure tank
+  digitalWrite(VALVE2, HIGH); digitalWrite(LED2, LOW);
+  delay(10);
+
+  // built up pressure in the pressure tank
+  if (pulse > 0) {
+    Serial.println("Positive pulse");
+    digitalWrite(VALVE2, HIGH); digitalWrite(LED2, LOW);
+    change_duty(pwm_pin36, 0, PUMP_PERIOD);
+    change_duty(pwm_pin34, 1900, PUMP_PERIOD);
+    while (P1 < pulse) {
+      read_pressure_sensors();
+    }
+  } else if (pulse < 0) {
+    Serial.println("Negative pulse");
+    digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
+    change_duty(pwm_pin34, 0, PUMP_PERIOD);
+    change_duty(pwm_pin36, 1900, PUMP_PERIOD);
+    while (P1 > pulse) {
+      read_pressure_sensors();
+    }
+  }  
 }
  
