@@ -279,6 +279,7 @@ void apply_pressure_pulse(float pulse) {
     while (P1 < pulse) {
       read_pressure_sensors();
     }
+    change_duty(pwm_pin34, 0, PUMP_PERIOD);
   } else if (pulse < 0) {
     Serial.println("Negative pulse");
     digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
@@ -287,6 +288,11 @@ void apply_pressure_pulse(float pulse) {
     while (P1 > pulse) {
       read_pressure_sensors();
     }
-  }  
+    change_duty(pwm_pin36, 0, PUMP_PERIOD);
+  }
+
+  // open valve after the pressure tank briefly
+  digitalWrite(VALVE2, HIGH); digitalWrite(LED2, LOW);
+  delay(100);
 }
  
