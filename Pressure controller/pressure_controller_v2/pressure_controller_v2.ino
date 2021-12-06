@@ -48,6 +48,7 @@ String command2;
 bool flag_once;
 bool flag_continuous;
 bool flag_spike;
+bool flag_sleep;
 int target_pressure;
 int pulse_magnitude;
 int pumps_PWM;
@@ -123,6 +124,7 @@ void setup() {
   flag_once = true;
   flag_continuous = true;
   flag_spike = false;
+  flag_sleep = false;
   lcd.clear();
 }
 
@@ -203,7 +205,7 @@ void loop() {
       pumps_PWM = 1800;
     }
   }
-
+  
   //// To do when spike
   if (flag_spike) {
     flag_spike = false;
@@ -260,6 +262,23 @@ void loop() {
     }
   }
   
+  
+  //// To do when idle
+  if (flag_sleep) {
+    lcd.clear();
+    change_duty(pwm_pin34, 0, PUMP_PERIOD);
+    change_duty(pwm_pin36, 0, PUMP_PERIOD);
+    digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+    digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
+    delay(10);
+    lcd.noBacklight();
+    
+    while (flag_sleep) {
+      process_serial_request();
+    }
+    setup();
+  }
+  
 }
 
 
@@ -303,10 +322,10 @@ void process_serial_request() {
   // flush input buffer so that we only read the last input
   while (Serial.available()) {
     command = Serial.readStringUntil('\n');
-  }
     command1 = getValue(command, ' ', 0);
     command2 = getValue(command, ' ', 1);
     Serial.print(command1+" "); Serial.println(command2);
+  }
     if (command1 == "P") {
       // set pressure
       target_pressure = command2.toFloat();
@@ -322,10 +341,10 @@ void process_serial_request() {
       flag_spike = true;
     } else if (command1 == "IDLE") {
       // set device idle
-      set_idle();
+      flag_sleep = true;
     } else if (command1 == "W8KE") {
       // wake-up device
-      setup();
+      flag_sleep = false;
     } else if (command1 == "V2H") {
       digitalWrite(VALVE2, HIGH); digitalWrite(LED2, LOW);
     } else if (command1 == "V2L") {
@@ -343,19 +362,5 @@ void process_serial_request() {
     } else if (command1 == "PVOFF") {
       change_duty(pwm_pin36, 0, PUMP_PERIOD);
     }
-}
-
-
-void set_idle() {
-  lcd.clear(); lcd.print("Going in standby");
-  change_duty(pwm_pin34, 0, PUMP_PERIOD);
-  change_duty(pwm_pin36, 0, PUMP_PERIOD);
-  digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
-  digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
-  delay(10);
-  lcd.noBacklight();
-
-  while (!Serial.available()) {
-  }
 }
  
