@@ -217,6 +217,16 @@ void loop() {
     // built up pressure in the pressure tank
     if (pulse_magnitude > 0) {
       Serial.println("Positive pulse");
+      // compensate if pressure is too high
+      if (pulse_magnitude - P2 > -MARGIN) {
+        digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+        change_duty(pwm_pin34, 0, PUMP_PERIOD);
+        change_duty(pwm_pin36, 400, PUMP_PERIOD);
+        while (P2 > pulse_magnitude) {
+          read_pressure_sensors();
+        }
+      }
+      // actually buildup pressure
       digitalWrite(VALVE1, HIGH); digitalWrite(LED1, LOW);
       change_duty(pwm_pin34, 1900, PUMP_PERIOD);
       change_duty(pwm_pin36, 0, PUMP_PERIOD);
@@ -226,6 +236,16 @@ void loop() {
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
     } else if (pulse_magnitude < 0) {
       Serial.println("Negative pulse");
+      // compensate if pressure is too low
+      if (pulse_magnitude - P2 > MARGIN) {
+        digitalWrite(VALVE1, HIGH); digitalWrite(LED1, LOW);
+        change_duty(pwm_pin34, 400, PUMP_PERIOD);
+        change_duty(pwm_pin36, 0, PUMP_PERIOD);
+        while (P2 < pulse_magnitude) {
+          read_pressure_sensors();
+        }
+      }
+      // actually buildup pressure
       digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
       change_duty(pwm_pin36, 1900, PUMP_PERIOD);
@@ -237,7 +257,7 @@ void loop() {
     
     // open valve after the pressure tank briefly
     digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
-    delay(50);
+    delay(300);
     digitalWrite(VALVE2, HIGH); digitalWrite(LED2, LOW);
   }
   
