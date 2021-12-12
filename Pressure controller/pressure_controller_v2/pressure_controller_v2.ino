@@ -381,6 +381,10 @@ void process_serial_request() {
       change_duty(pwm_pin36, 1900, PUMP_PERIOD);
     } else if (command1 == "PVOFF") {
       change_duty(pwm_pin36, 0, PUMP_PERIOD);
+    } else if (command1 == "DIM") {
+      lcd.noBacklight();
+    } else if (command1 == "LCD") {
+      lcd.backlight();
     }
 }
  
