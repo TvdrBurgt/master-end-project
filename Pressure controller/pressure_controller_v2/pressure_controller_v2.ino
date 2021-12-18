@@ -218,8 +218,9 @@ void loop() {
     if (pulse_magnitude > 0) {
       Serial.println("Positive pulse");
       // compensate if pressure is too high
-      if (pulse_magnitude - P2 > -MARGIN) {
+      if (pulse_magnitude - P2 < -MARGIN) {
         digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+        delay(10);
         change_duty(pwm_pin34, 0, PUMP_PERIOD);
         change_duty(pwm_pin36, 400, PUMP_PERIOD);
         while (P2 > pulse_magnitude) {
@@ -239,6 +240,7 @@ void loop() {
       // compensate if pressure is too low
       if (pulse_magnitude - P2 > MARGIN) {
         digitalWrite(VALVE1, HIGH); digitalWrite(LED1, LOW);
+        delay(10);
         change_duty(pwm_pin34, 400, PUMP_PERIOD);
         change_duty(pwm_pin36, 0, PUMP_PERIOD);
         while (P2 < pulse_magnitude) {
