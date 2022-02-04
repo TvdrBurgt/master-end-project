@@ -38,7 +38,7 @@ def plotBlurCannyHough(IB,BW,Tpeaks,Rpeaks,centroids,labels):
     # subplot with canny edge detection
     axs[1].matshow(BW, cmap='gray', aspect = 'auto'); axs[1].axis('image'); axs[1].axis('off')
     # subplot with Houghspace
-    H, T, R = transform.hough_line(BW,np.linspace(0,3*np.pi,1500))
+    H, T, R = transform.hough_line(BW,np.linspace(np.pi/3,2*np.pi/3,1500))
     axs[2].imshow(np.log(1+H), extent=[np.rad2deg(T[0]), np.rad2deg(T[-1]), R[-1], R[0]], aspect='auto')
     axs[2].set_xlabel(r'$\theta$ (degree)')
     axs[2].set_ylabel(r'$\rho$ (pixels)')
@@ -51,6 +51,39 @@ def plotBlurCannyHough(IB,BW,Tpeaks,Rpeaks,centroids,labels):
     for angle, dist, color in zip(centroids[:,0], centroids[:,1], ['r','g']):
         axs[2].scatter(x=[np.rad2deg(angle)], y=[dist], c=color, s=40, marker='x')
     fig.show()
+
+def plotThesis(IB,BW,Tpeaks,Rpeaks,centroids,labels,angle1,dist1,angle2,dist2,xpos,ypos):
+    # subplot with original image blurred
+    IB = io.imread(r"C:\Users\tvdrb\Desktop\_imagexygrid_X300Y350b.tif")
+    fig, axs1 = plt.subplots(1,1)
+    axs1.imshow(IB, cmap='gray', aspect = 'auto'); axs1.axis('image'); axs1.axis('off')
+    for angle, dist, label in zip(Tpeaks,Rpeaks,labels):
+        if label == 0:
+            color = 'r'
+        else:
+            color = 'g'
+        (x, y) = dist*np.array([np.cos(angle), np.sin(angle)])
+        axs1.axline((x ,y), slope=np.tan(angle + np.pi/2), linewidth=0.4, c=color)
+    (x1, y1) = dist1*np.array([np.cos(angle1), np.sin(angle1)])
+    (x2, y2) = dist2*np.array([np.cos(angle2), np.sin(angle2)])
+    axs1.axline((x1 ,y1), slope=np.tan(angle1 + np.pi/2), c='g')
+    axs1.axline((x2 ,y2), slope=np.tan(angle2 + np.pi/2), c='r')
+    
+    # subplot with Houghspace
+    fig, axs2 = plt.subplots(1,1)
+    H, T, R = transform.hough_line(BW,np.linspace(np.pi/3,2*np.pi/3,1500))
+    axs2.imshow(np.log(1+H), extent=[np.rad2deg(T[0]), np.rad2deg(T[-1]), R[-1], R[0]], aspect='auto')
+    axs2.set_xlabel(r'$\theta$ (degree)')
+    axs2.set_ylabel(r'$\rho$ (pixels)')
+    for angle, dist, label in zip(Tpeaks,Rpeaks,labels):
+        if label == 0:
+            color = 'r'
+        else:
+            color = 'g'
+        axs2.scatter(x=[np.rad2deg(angle)], y=[dist], c=color, s=20, marker='.')
+    for angle, dist, color in zip(centroids[:,0], centroids[:,1], ['r','g']):
+        axs2.scatter(x=[np.rad2deg(angle)], y=[dist], c=color, s=40, marker='x')
+    axs2.legend(['K-means clusters','Hough peaks'])
 
 
 def makeGaussian(size=(2048,2048), mu=(1024,1024), sigma=(512,512)):
@@ -90,14 +123,15 @@ def detectPipettetip(Ia, Ib, diameter, orientation, plotflag=False):
         ypos        = y position of the pipette tip
     """
     
-    # Gaussian blur
-    print('I)')
-    LB = filters.gaussian(Ia, 1)
-    RB = filters.gaussian(Ib, 1)
-    
     # Image subtraction
+    print('I)')
+    Fcount_Ia = np.sum(Ia)
+    Fcount_Ib = np.sum(Ib)
+    I = Ia/Fcount_Ia - Ib/Fcount_Ib
+    
+    # Gaussian blur
     print('II)')
-    IB = LB - RB
+    IB = filters.gaussian(I, 1)
     
     # Canny edge detection
     print('III)')
@@ -110,7 +144,7 @@ def detectPipettetip(Ia, Ib, diameter, orientation, plotflag=False):
     
     # Find Hough peaks
     print('V)')
-    _, Tpeaks, Rpeaks = transform.hough_line_peaks(H,T,R, num_peaks=5, threshold=0)
+    _, Tpeaks, Rpeaks = transform.hough_line_peaks(H,T,R, num_peaks=15, threshold=0)
     
     # Cluster peaks
     print('VI)')
@@ -120,7 +154,6 @@ def detectPipettetip(Ia, Ib, diameter, orientation, plotflag=False):
     data = np.transpose(np.vstack([Tpeaks,Rpeaks]))
     centroids, labels = cluster.vq.kmeans2(data, k=initial_clusters, iter=10, minit='matrix')
     centroid1, centroid2 = centroids
-    
     
     # Find intersection between X1*cos(T1)+Y1*sin(T1)=R1 and X2*cos(T2)+Y2*sin(T2)=R2
     print('VII)')
@@ -145,13 +178,14 @@ def detectPipettetip(Ia, Ib, diameter, orientation, plotflag=False):
     if plotflag:
         plotCoord(Ib,angle1,dist1,angle2,dist2,xpos,ypos)
         plotBlurCannyHough(IB,BW,Tpeaks,Rpeaks,centroids,labels)
+        # plotThesis(IB,BW,Tpeaks,Rpeaks,centroids,labels,angle1,dist1,angle2,dist2,xpos,ypos)  #FLAG: Only for thesis
     
     return xpos, ypos
     
     
 if __name__ == '__main__':
-    Ia = io.imread(r"C:\Users\tvdrb\Desktop\2021-08-16\X250Y250a.tif")
-    Ib = io.imread(r"C:\Users\tvdrb\Desktop\2021-08-16\X250Y250b.tif")
+    Ia = io.imread(r"C:\Users\tvdrb\Desktop\_imagexygrid_X300Y350a.tif")
+    Ib = io.imread(r"C:\Users\tvdrb\Desktop\_imagexygrid_X300Y350b.tif")
     
     x1, y1 = detectPipettetip(Ia, Ib, diameter=16, orientation=0)
     
