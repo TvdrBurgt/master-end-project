@@ -49,6 +49,7 @@ bool flag_once;
 bool flag_continuous;
 bool flag_spike;
 bool flag_sleep;
+bool flag_hold;
 int target_pressure;
 int pulse_magnitude;
 int pumps_PWM;
@@ -125,6 +126,7 @@ void setup() {
   flag_continuous = true;
   flag_spike = false;
   flag_sleep = false;
+  flag_hold = false;
   lcd.clear();
 }
 
@@ -302,6 +304,17 @@ void loop() {
     }
     setup();
   }
+
+  //// Hold pressure
+  if (flag_hold) {
+    if (abs(target_pressure - P2) < MARGIN) {
+      change_duty(pwm_pin34, 0, PUMP_PERIOD);
+      change_duty(pwm_pin36, 0, PUMP_PERIOD);
+      flag_once = false;
+      flag_continuous = false;
+      flag_spike = false;
+    }
+  }
   
 }
 
@@ -356,12 +369,14 @@ void process_serial_request() {
       flag_once = true;
       flag_continuous = true;
       flag_spike = false;
+      flag_hold = false;
     } else if (command1 == "PH") {
       // set pressure
       target_pressure = command2.toFloat();
       flag_once = true;
-      flag_continuous = false;
+      flag_continuous = true;
       flag_spike = false;
+      flag_hold = true;
     } else if(command1 == "S") {
       // make pressure spike
       pulse_magnitude = command2.toFloat();
@@ -369,32 +384,55 @@ void process_serial_request() {
       flag_once = false;
       flag_continuous = true;
       flag_spike = true;
+      flag_hold = false;
     } else if (command1 == "IDLE") {
       // set device idle
       flag_sleep = true;
+      flag_hold = false;
     } else if (command1 == "W8KE") {
       // wake-up device
       flag_sleep = false;
+      flag_hold = false;
     } else if (command1 == "V2H") {
       digitalWrite(VALVE2, HIGH); digitalWrite(LED2, LOW);
+      flag_once = false;
+      flag_continuous = false;
+      flag_spike = false;
     } else if (command1 == "V2L") {
       digitalWrite(VALVE2, LOW); digitalWrite(LED2, HIGH);
+      flag_once = false;
+      flag_continuous = false;
+      flag_spike = false;
     } else if (command1 == "V1H") {
       digitalWrite(VALVE1, HIGH); digitalWrite(LED1, LOW);
+      flag_once = false;
+      flag_continuous = false;
+      flag_spike = false;
     } else if (command1 == "V1L") {
       digitalWrite(VALVE1, LOW); digitalWrite(LED1, HIGH);
+      flag_once = false;
+      flag_continuous = false;
+      flag_spike = false;
     } else if (command1 == "PPON") {
-      flag_continuous = false;
       change_duty(pwm_pin34, 1900, PUMP_PERIOD);
+      flag_once = false;
+      flag_continuous = false;
+      flag_spike = false;
     } else if (command1 == "PPOFF") {
-      flag_continuous = false;
       change_duty(pwm_pin34, 0, PUMP_PERIOD);
+      flag_once = false;
+      flag_continuous = false;
+      flag_spike = false;
     } else if (command1 == "PVON") {
-      flag_continuous = false;
       change_duty(pwm_pin36, 1900, PUMP_PERIOD);
-    } else if (command1 == "PVOFF") {
+      flag_once = false;
       flag_continuous = false;
+      flag_spike = false;
+    } else if (command1 == "PVOFF") {
       change_duty(pwm_pin36, 0, PUMP_PERIOD);
+      flag_once = false;
+      flag_continuous = false;
+      flag_spike = false;
     } else if (command1 == "DIM") {
       lcd.noBacklight();
     } else if (command1 == "LCD") {
