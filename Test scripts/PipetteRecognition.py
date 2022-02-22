@@ -144,7 +144,7 @@ def detectPipettetip(Ia, Ib, diameter, orientation, plotflag=False):
     
     # Find Hough peaks
     print('V)')
-    _, Tpeaks, Rpeaks = transform.hough_line_peaks(H,T,R, num_peaks=15, threshold=0)
+    _, Tpeaks, Rpeaks = transform.hough_line_peaks(H,T,R, num_peaks=5, threshold=0)
     
     # Cluster peaks
     print('VI)')
@@ -184,8 +184,8 @@ def detectPipettetip(Ia, Ib, diameter, orientation, plotflag=False):
     
     
 if __name__ == '__main__':
-    Ia = io.imread(r"C:\Users\tvdrb\Desktop\_imagexygrid_X300Y350a.tif")
-    Ib = io.imread(r"C:\Users\tvdrb\Desktop\_imagexygrid_X300Y350b.tif")
+    Ia = io.imread(r"C:\Users\tvdrb\Desktop\2022-02-11 @ focus @ +30mBar\_imagexygrid_X200Y200a.tif")
+    Ib = io.imread(r"C:\Users\tvdrb\Desktop\2022-02-11 @ focus @ +30mBar\_imagexygrid_X200Y200b.tif")
     
     x1, y1 = detectPipettetip(Ia, Ib, diameter=16, orientation=0)
     

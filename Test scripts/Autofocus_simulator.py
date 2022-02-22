@@ -72,7 +72,8 @@ class autofocus:
                     k = k+1
                     penalty = self.fz[np.where(self.z == self.pos+self.stepsize*k)]
                     penaltytail = np.append(self.penaltytail, penalty)
-                monotonicity_condition = np.all(np.diff(penaltytail) <= 0)
+                differences = np.diff(penaltytail)
+                monotonicity_condition = np.all(differences <= 0)
                 if monotonicity_condition:
                     print("Detected maximum is a sharpness peak! (1)")
                     self.lookingforpeak = False
@@ -142,8 +143,8 @@ if __name__ == "__main__":
     np.random.seed(34576)
     
     z = np.linspace(-50,2000,2051)
-    fz = (1/np.sqrt(2*np.pi*300**2))*np.exp(-z**2/2/300**2) + (1/np.sqrt(2*np.pi*100**2))*np.exp(-z**2/2/100**2) + np.sqrt(z+50)/1000**2
-    fz_noise = fz + (np.random.rand(len(z))-0.5)/10*np.mean(fz)
+    fz = (1/np.sqrt(2*np.pi*300**2))*np.exp(-z**2/2/300**2) + (1/np.sqrt(2*np.pi*100**2))*np.exp(-z**2/2/100**2) + z/100**4
+    fz_noise = fz + (np.random.rand(len(z))-0.5)/10*(2/2051)
     
     n_agents = 10
     agents_position_history = np.zeros((n_agents,3))
@@ -157,8 +158,8 @@ if __name__ == "__main__":
         agents_penalty_history[i,:] = agent.penaltyhistory[0:3]
     
     plt.figure()
-    # plt.plot(z, fz, label="groundtruth")
-    plt.scatter(z, fz_noise, label="groundtruth with noise", marker='2', color='grey')
+    # plt.plot(z, fz, label="$s(z)$", color = 'blue')
+    plt.scatter(z, fz_noise, label="$S_{sim}(z)$", marker='2', color='grey')
     positionhistory, penaltyhistory = agent.getSharpnessgraph()
     plt.plot(positionhistory, penaltyhistory, label="agent", color='yellow')
     plt.title("Simulation of sharpness function")
@@ -168,8 +169,8 @@ if __name__ == "__main__":
     
     plt.figure()
     for i in range(0,n_agents):
-        plt.plot(agents_position_history[i,:], agents_penalty_history[i,:], label='agent '+str(i))
-    plt.title("3-point end of pipettetip autofocus")
+        plt.plot(agents_position_history[i,:], agents_penalty_history[i,:], label='agent '+str(i+1))
+    plt.title("3-point end of pipettetip autofocus (n=12)")
     plt.xlabel(r'Focus depth (in $\mu$m)')
     plt.ylabel(r'Variance of Laplacian (a.u.)')
     plt.legend()

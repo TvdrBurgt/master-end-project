@@ -15,11 +15,14 @@ import matplotlib.cm as cm
 # =============================================================================
 
 # target folder containing the images to be annotated
-path = r'C:\Users\tvdrb\Desktop\2021-08-16'
+path = r'W:\staff-groups\tnw\ist\do\projects\Neurophotonics\Brinkslab\Data\Thijs\XY grid\2022-02-11 @ focus @ +30mBar'
 
 # names of files to compare
-groundtruth = "XY grid 2021-08-16 attenuated"
-estimate = "XY grid 2021-08-16 algorithm 2iter"
+groundtruth = "2022-02-11 @ focus @ +30mBar attenuated"
+estimate = "2022-02-11 @ focus @ +30mBar algorithm"
+
+# divide the field of view into segments
+num_segments = 4
 
 # bias correction
 xbias = 0
@@ -67,9 +70,6 @@ y2 = np.array(y2)
 dx = np.array(dx)
 dy = np.array(dy)
 
-# divide the field of view into segments
-num_segments = 8
-
 # create boolean matrix with each column another segment
 segmentclass = np.zeros((len(name),num_segments+1), dtype=bool)
 centerdistance = np.sqrt((x1-xsize/2)**2 + (y1-ysize/2)**2)
@@ -106,18 +106,18 @@ for i in range(num_segments+1):
 
 ########################## Construct Figure Histogram #########################
 
-fig, axs = plt.subplots(1,2)
-axs[0].hist(dx[~np.isnan(dx)], bins=500)
-axs[0].set_title('X bias')
-axs[0].set_xlabel(r'Bias (in pixels)')
-axs[0].set_ylabel('Count')
-axs[1].hist(dy[~np.isnan(dy)], bins=500)
-axs[1].set_title('Y bias')
-axs[1].set_xlabel(r'Bias (in pixels)')
-axs[1].set_ylabel('Count')
-ymax = max(max(axs[0].get_ylim(), axs[1].get_ylim()))
-axs[0].set_ylim(0,ymax)
-axs[1].set_ylim(0,ymax)
+# fig, axs = plt.subplots(1,2)
+# axs[0].hist(dx[~np.isnan(dx)], bins=500)
+# axs[0].set_title('X bias')
+# axs[0].set_xlabel(r'Bias (in pixels)')
+# axs[0].set_ylabel('Count')
+# axs[1].hist(dy[~np.isnan(dy)], bins=500)
+# axs[1].set_title('Y bias')
+# axs[1].set_xlabel(r'Bias (in pixels)')
+# axs[1].set_ylabel('Count')
+# ymax = max(max(axs[0].get_ylim(), axs[1].get_ylim()))
+# axs[0].set_ylim(0,ymax)
+# axs[1].set_ylim(0,ymax)
 
 
 ########################## Construct Figure Segments ##########################

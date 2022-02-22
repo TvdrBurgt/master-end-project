@@ -15,7 +15,7 @@ from skimage import io
 # =============================================================================
 
 # load function from other file
-from PipetteRecognitionRevision import detectPipettetip, makeGaussian
+from PipetteRecognition import detectPipettetip, makeGaussian
 
 
 class DetectPipetteTips:
@@ -53,16 +53,20 @@ class DetectPipetteTips:
             else:
                 continue
             
-            # pipette tip detection algorithm
-            x1, y1 = detectPipettetip(Ia, Ib, diameter=16, orientation=0)
-    
-            # apply Gaussian window
-            W = makeGaussian(size=Ia.shape, mu=(x1,y1), sigma=(Ia.shape[0]//12,Ia.shape[1]//12))
-            IaW = np.multiply(Ia,W)
-            IbW = np.multiply(Ib,W)
-            
-            # pipette tip detection algorithm
-            x,y = detectPipettetip(IaW, IbW, diameter=20, orientation=0)
+            try:
+                # pipette tip detection algorithm
+                x1, y1 = detectPipettetip(Ia, Ib, diameter=16, orientation=0)
+        
+                # apply Gaussian window
+                W = makeGaussian(size=Ia.shape, mu=(x1,y1), sigma=(Ia.shape[0]//12,Ia.shape[1]//12))
+                IaW = np.multiply(Ia,W)
+                IbW = np.multiply(Ib,W)
+                
+                # pipette tip detection algorithm
+                x,y = detectPipettetip(IaW, IbW, diameter=20, orientation=0)
+            except:
+                x,y = (np.nan,np.nan)
+                print('something went wrong...')
             
             # saving pipette tip coordinates
             print('Pipette tip detected @ (x,y) = (%f,%f)' % (x,y))
@@ -84,8 +88,8 @@ class DetectPipetteTips:
 
 
 if __name__ == '__main__':
-    path = r"C:\Users\tvdrb\Desktop\2021-08-16"
-    savename = "XY grid 2021-08-16 algorithm 2iter"
+    path = r"C:\Users\tvdrb\Desktop\2022-02-11 @ focus @ +30mBar"
+    savename = "2022-02-11 @ focus @ +30mBar algorithm"
     
     imagefolder = DetectPipetteTips(path)
     imagefolder.iterator()
